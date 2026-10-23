@@ -60,6 +60,14 @@ struct StorageRegression {
         do { _ = try store.projectFile(imported.id, path: "../outside.py"); failures.append("Path traversal accepted") } catch {}
         let restored = LearningStore(directory: alias)
         if restored.projects.count != 2 || restored.document(copy.id)?.source != "print('项目编辑')" { failures.append("Project state did not survive reopening") }
+        let removed = try store.openProjectFile(project, path: "main.py")
+        store.update(removed.id, source: "print('latest before deletion')")
+        try store.delete(removed.id)
+        try store.flushOrThrow()
+        if manager.fileExists(atPath: root.appendingPathComponent("main.py").path) { failures.append("Deleting a project document left its file on disk") }
+        let afterDelete = LearningStore(directory: alias)
+        if afterDelete.document(removed.id) != nil { failures.append("Deleted project document was resurrected") }
+        if afterDelete.projects.first(where: { $0.id == project.id })?.entry != "1字面量与变量.py" { failures.append("Deleted run entry was not repaired") }
         if !failures.isEmpty {
             for failure in failures { print("FAIL: " + failure) }
             exit(1)

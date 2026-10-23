@@ -6,6 +6,49 @@ import git_support
 from unittest.mock import patch
 from dulwich import porcelain
 class GitTests(unittest.TestCase):
+ def test_commit_and_history_work_when_ios_cannot_start_processes(self):
+  with tempfile.TemporaryDirectory() as d:
+   def call(op,**extra): return git_support.perform(dict(directory=d,operation=op,**extra))
+   self.assertEqual(call('init')['status'],'success')
+   Path(d,'main.py').write_text('print(42)')
+   with patch('subprocess.Popen',side_effect=OSError(45,'ios does not support processes.')):
+    result=call('commit',message='iOS commit')
+    self.assertEqual(result['status'],'success',result)
+    history=call('log')
+    self.assertEqual(history['status'],'success',history)
+    self.assertIn('iOS commit',history['report'])
+    self.assertEqual(call('status')['report'],'工作区干净。')
+
+ def test_combined_commit_reports_local_success_when_push_is_rejected(self):
+  with tempfile.TemporaryDirectory() as d:
+   git_support.perform(dict(directory=d,operation='init'))
+   Path(d,'main.py').write_text('print(42)')
+   with patch.object(porcelain,'push',side_effect=porcelain.DivergedBranches(b'a'*40,b'b'*40)):
+    result=git_support.perform(dict(directory=d,operation='commit_push',message='keep local commit',remote='https://example.com/repo'))
+   self.assertEqual(result['status'],'error')
+   self.assertIn('本地提交',result['report'])
+   self.assertIn('远端',result['report'])
+   history=git_support.perform(dict(directory=d,operation='log'))
+   self.assertIn('keep local commit',history['report'])
+
+ def test_deletion_is_committed_and_can_be_pushed_without_a_process(self):
+  with tempfile.TemporaryDirectory() as d:
+   remote=Path(d,'remote'); local=Path(d,'local'); local.mkdir()
+   porcelain.init(str(remote),bare=True).close()
+   def call(op,**extra):
+    with patch.object(git_support,'_remote',return_value=str(remote)):
+     return git_support.perform(dict(directory=str(local),operation=op,remote='https://example.com/repo',**extra))
+   call('init'); Path(local,'删除.py').write_text('print(1)'); Path(local,'main.py').write_text('print(2)')
+   with patch('subprocess.Popen',side_effect=OSError(45,'ios does not support processes.')):
+    self.assertEqual(call('commit_push',message='initial')['status'],'success')
+    Path(local,'删除.py').unlink()
+    result=call('commit_push',message='remove file')
+    self.assertEqual(result['status'],'success',result)
+   with git_support.Repo(str(remote)) as repo:
+    tree=repo[repo[repo.head()].tree]
+    self.assertIn(b'main.py',tree)
+    self.assertNotIn('删除.py'.encode(),tree)
+
  def test_commit_records_same_size_edit_even_if_file_timestamp_is_preserved(self):
   with tempfile.TemporaryDirectory() as d:
    def call(op,**extra): return git_support.perform(dict(directory=d,operation=op,**extra))
