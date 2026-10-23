@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from dulwich import porcelain
 from dulwich.repo import Repo
+from dulwich.client import HTTPUnauthorized, HTTPProxyUnauthorized
 
 def _remote(value):
     parsed = urlsplit(value)
@@ -30,9 +31,10 @@ def perform(payload):
         if operation in ('clone', 'pull', 'push'):
             import certifi, urllib3
             remote = _remote(payload.get('remote', ''))
-            options = dict(username=payload.get('username') or 'git', password=payload.get('token') or '',
-                pool_manager=urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where(),
+            options = dict(pool_manager=urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where(),
                     timeout=urllib3.Timeout(connect=15, read=30), retries=False))
+            if payload.get('token'):
+                options.update(username=payload.get('username') or 'git', password=payload['token'])
         if operation == 'init':
             porcelain.init(path).close()
             report = '已创建本地 Git 仓库。'
@@ -119,6 +121,10 @@ def perform(payload):
             message = ('远端已有本机未包含的提交，请先拉取再推送。若拉取仍提示分歧，请在电脑 Git 客户端合并两端提交，再拉取。' if operation == 'push' else
                        '本地与远端提交已分歧，当前拉取仅支持快进。请在电脑 Git 客户端合并两端提交，再拉取。')
             message += '\n已停止同步以保护两端代码，不会强制覆盖。'
+        elif isinstance(exc, HTTPUnauthorized):
+            message = '账号或访问令牌无效，或没有该仓库权限。请检查已保存凭据；公开仓库克隆可清空令牌后重试。'
+        elif isinstance(exc, HTTPProxyUnauthorized):
+            message = '网络代理需要认证，请检查设备代理设置后重试。'
         else:
             message = str(exc)
         for secret in (payload.get('token'), payload.get('username')):

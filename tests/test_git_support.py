@@ -6,6 +6,32 @@ import git_support
 from unittest.mock import patch
 from dulwich import porcelain
 class GitTests(unittest.TestCase):
+ def test_public_clone_does_not_send_an_empty_password_as_credentials(self):
+  from dulwich.server import DictBackend
+  from dulwich.web import make_wsgi_chain
+  from wsgiref.simple_server import make_server,WSGIRequestHandler
+  import threading
+  with tempfile.TemporaryDirectory() as d:
+   source=Path(d,'source'); source.mkdir()
+   porcelain.init(str(source)).close(); Path(source,'main.py').write_text('print(42)')
+   porcelain.add(str(source));porcelain.commit(str(source),message=b'public',author=b'Test <test@local>',no_verify=True,sign=False)
+   with git_support.Repo(str(source)) as repo:
+    application=make_wsgi_chain(DictBackend({'/public.git':repo}))
+    def anonymous_only(environ,start_response):
+     if environ.get('HTTP_AUTHORIZATION'):
+      start_response('401 Unauthorized',[('WWW-Authenticate','Basic realm="fixture"')]);return [b'']
+     return application(environ,start_response)
+    class QuietHandler(WSGIRequestHandler):
+     def log_message(self,*args): pass
+    server=make_server('127.0.0.1',0,anonymous_only,handler_class=QuietHandler)
+    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+    try:
+     with patch.object(git_support,'_remote',return_value='http://127.0.0.1:'+str(server.server_port)+'/public.git'):
+      result=git_support.perform(dict(directory=str(Path(d,'clone')),operation='clone',remote='https://fixture/public.git',username='saved-user',token=''))
+     self.assertEqual(result['status'],'success',result)
+     self.assertEqual(Path(d,'clone/main.py').read_text(),'print(42)')
+    finally: server.shutdown();thread.join();server.server_close()
+
  def test_commit_and_history_work_when_ios_cannot_start_processes(self):
   with tempfile.TemporaryDirectory() as d:
    def call(op,**extra): return git_support.perform(dict(directory=d,operation=op,**extra))

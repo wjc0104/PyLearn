@@ -17,7 +17,7 @@ struct GitView: View {
         Form {
             Section("仓库") {
                 Button("初始化 Git") { perform("init") }
-                HStack { Button("状态") { perform("status") }; Spacer(); Button("差异") { perform("diff") }; Spacer(); Button("历史") { perform("log") } }
+                HStack { Button("状态") { perform("status") }; Spacer(); Button("差异") { perform("diff") }; Spacer(); Button("历史") { perform("log") } }.buttonStyle(.borderless)
             }
             Section("提交所有修改") {
                 TextField("提交说明", text: $message)
@@ -55,7 +55,7 @@ struct GitView: View {
                 Button("保存远程配置") { do { try saveCredentials(); report = "配置已保存，以后同步自动使用。" } catch { report = error.localizedDescription } }
                 Text("按 Git 服务地址保存，克隆、拉取和推送自动复用。令牌只保存在本机钥匙串。").font(.caption).foregroundColor(.secondary)
             }
-            HStack { Button("拉取（仅快进）") { perform("pull") }; Spacer(); Button("推送当前分支") { perform("push") } }
+            HStack { Button("拉取（仅快进）") { perform("pull") }; Spacer(); Button("推送当前分支") { perform("push") } }.buttonStyle(.borderless)
             Text("提交前可查看差异。拉取和切换分支前需要提交本地修改；分歧时保留代码。").font(.caption).foregroundColor(.secondary)
         }
     }
