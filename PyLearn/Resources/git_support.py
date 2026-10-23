@@ -7,7 +7,7 @@ from dulwich.repo import Repo
 
 def _remote(value):
     parsed = urlsplit(value)
-    if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
+    if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError('远程地址必须为不含账号密码的 HTTPS URL。')
     return value
 

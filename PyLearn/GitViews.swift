@@ -48,7 +48,7 @@ struct GitView: View {
             }
     }
     private func saveCredentials() {
-        guard let url = URLComponents(string: remote), url.scheme == "https", url.host != nil, url.user == nil, url.password == nil else { report = "请填写不含账号密码的 HTTPS 仓库地址。"; return }
+        guard let url = URLComponents(string: remote), url.scheme == "https", url.host != nil, url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else { report = "请填写不含账号密码的 HTTPS 仓库地址。"; return }
         do { try SecretStore.save(token, account: "git.token"); UserDefaults.standard.set(remote, forKey: "git.remote." + project.id.uuidString); UserDefaults.standard.set(username, forKey: "git.username"); report = "配置已保存。" } catch { report = error.localizedDescription }
     }
     private func perform(_ operation: String, extra: [String: Any] = [:]) {

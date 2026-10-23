@@ -102,9 +102,20 @@ struct BankSearchView: View {
     @State private var generated: BankExercise?
     @State private var error = ""
     private var results: [BankExercise] {
-        (bank.custom + bank.exercises).filter { item in
-            let content = ([item.title, item.prompt, item.module] + item.tags).joined(separator: " ").lowercased()
-            return (query.isEmpty || query.lowercased().split(separator: " ").allSatisfy { content.contains($0) }) && (level == 0 || (level == 1 ? item.difficulty <= 2 : item.difficulty > 2))
+        let all: [BankExercise] = bank.custom + bank.exercises
+        let words: [String] = query.lowercased().split(separator: " ").map(String.init)
+        return all.filter { item in
+            var fields: [String] = [item.title, item.prompt, item.module]
+            fields.append(contentsOf: item.tags)
+            let content: String = fields.joined(separator: " ").lowercased()
+            let matchesQuery = words.allSatisfy { word in content.contains(word) }
+            let matchesLevel: Bool
+            switch level {
+            case 1: matchesLevel = item.difficulty <= 2
+            case 2: matchesLevel = item.difficulty > 2
+            default: matchesLevel = true
+            }
+            return matchesQuery && matchesLevel
         }
     }
     var body: some View {

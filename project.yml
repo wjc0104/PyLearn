@@ -36,6 +36,7 @@ targets:
         excludes: [Resources]
       - path: PyLearn/Resources
         buildPhase: resources
+        excludes: ["**/__pycache__", "**/*.pyc"]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.wjc0104.pylearn

@@ -7,6 +7,15 @@ sys.path.insert(0,str(ROOT/'PyLearn/Resources'))
 import runtime
 
 class ProjectRuntimeTests(unittest.TestCase):
+    def test_nested_entry_imports_sibling_module(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'tools').mkdir()
+            (root/'tools/helper.py').write_text('value=42')
+            out=[]
+            r=runtime.execute('import helper\nprint(helper.value)',out.append,lambda _:None,lambda:False,directory=folder,filename=str(root/'tools/main.py'))
+            self.assertEqual(r['status'],'success',r)
+            self.assertEqual(''.join(out),'42\n')
+
     def test_project_imports_resources_and_restores_environment(self):
         with tempfile.TemporaryDirectory() as folder:
             p=Path(folder)

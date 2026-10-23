@@ -38,11 +38,11 @@ class _OutputLimit(BaseException):
     pass
 
 
-def _error(exc):
+def _error(exc, filename=FILENAME):
     line = getattr(exc, 'lineno', None)
     if line is None and exc.__traceback__:
         for frame in traceback.extract_tb(exc.__traceback__):
-            if frame.filename == FILENAME:
+            if frame.filename == filename:
                 line = frame.lineno
     kind = type(exc).__name__
     hints = {
@@ -55,7 +55,7 @@ def _error(exc):
         'ZeroDivisionError': '除数不能为零，请先检查除数。',
         'IndexError': '索引超出范围，请检查列表长度；第一个元素的索引是 0。',
         'KeyError': '字典中没有这个键，可以先检查键是否存在。',
-        'ModuleNotFoundError': '未找到这个模块。首版提供标准库，不支持任意第三方包。',
+        'ModuleNotFoundError': '检查模块名、项目目录和运行入口。支持标准库与项目内模块，未提供任意第三方包安装。',
         'RecursionError': '递归调用过深，请检查终止条件。',
         'FileNotFoundError': '没有找到文件，请检查文件路径。',
     }
@@ -231,10 +231,12 @@ def execute(source, write, read, cancelled, timeout=10, directory=None, filename
         guard_name = '__pylearn_check__'
         while guard_name in source:
             guard_name += '_'
-        code = _compile(source, guard_name)
+        code = _compile(source, guard_name, filename or FILENAME)
         builtins.input = ask
         time.sleep = sleep
         with project_context(directory, guard_name, check), contextlib.redirect_stdout(Writer()), contextlib.redirect_stderr(Writer()):
+            if directory and filename:
+                sys.path.insert(0, str(Path(filename).resolve().parent))
             sys.settrace(trace)
             # shortcut: cancellation is cooperative; arbitrary C extensions cannot be force-killed.
             exec(code, {'__name__': '__main__', '__file__': filename or FILENAME, guard_name: check})
@@ -246,9 +248,9 @@ def execute(source, write, read, cancelled, timeout=10, directory=None, filename
         status = 'output_limit'
     except SystemExit as exc:
         if exc.code not in (None, 0):
-            status, error = 'error', _error(exc)
+            status, error = 'error', _error(exc, filename or FILENAME)
     except BaseException as exc:
-        status, error = 'error', _error(exc)
+        status, error = 'error', _error(exc, filename or FILENAME)
     finally:
         sys.settrace(old_trace)
         builtins.input = original_input

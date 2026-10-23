@@ -118,6 +118,28 @@ final class PyLearnTests: XCTestCase {
         wait(for: [done], timeout: 30)
     }
 
+    func testEmbeddedLatestPythonSyntaxAndJedi() throws {
+        let runtime = PLPythonRuntime.shared()
+        let done = expectation(description: "Python 3.15 and templates")
+        var output = ""
+        runtime.outputHandler = { output = $0 }
+        let source = "import sys\nfrom string.templatelib import Template\nx=7\nvalue=t'{x}'\nprint(sys.version.split()[0], isinstance(value, Template))"
+        let data = try JSONSerialization.data(withJSONObject: ["action":"run", "source":source])
+        runtime.performRequest(String(decoding: data, as: UTF8.self)) { response in
+            XCTAssertTrue(response.contains("success"), response)
+            XCTAssertEqual(output, "3.15.1 True\n")
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 30)
+        let completion = expectation(description: "Embedded static member completion")
+        let analysis = try JSONSerialization.data(withJSONObject: ["action":"analyze", "source":"value='abc'\nvalue.up", "prefix":"up", "line":2, "column":8])
+        runtime.performRequest(String(decoding: analysis, as: UTF8.self)) { response in
+            XCTAssertTrue(response.contains("upper"), response)
+            completion.fulfill()
+        }
+        wait(for: [completion], timeout: 30)
+    }
+
     func testEmbeddedInputCanBeStoppedAndNextRunStillWorks() {
         let stopped = expectation(description: "Stopped input")
         let runtime = PLPythonRuntime.shared()
