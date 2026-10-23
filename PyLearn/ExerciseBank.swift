@@ -82,6 +82,7 @@ struct BankCatalog: Codable { let schema: Int; let revision: String; let exercis
         题目必须明确输入输出和边界规则，不能把答案写进starter，不能只检查打印输出。
         """
         let value = try await AIClient.text(profile, key: SecretStore.read("ai." + profile.id.uuidString) ?? "", prompt: prompt)
+        try Task.checkCancellation()
         guard let first = value.firstIndex(of: "{"), let last = value.lastIndex(of: "}"), first <= last,
               let data = String(value[first...last]).data(using: .utf8),
               var json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw AIClient.failure("AI 返回格式无效，请重新生成。") }
@@ -102,6 +103,7 @@ struct BankSearchView: View {
     @State private var generated: BankExercise?
     @State private var error = ""
     @State private var choosingModel = false
+    @State private var generationTask: Task<Void, Never>?
     private var results: [BankExercise] {
         let all: [BankExercise] = bank.custom + bank.exercises
         let words: [String] = query.lowercased().split(separator: " ").map(String.init)
@@ -146,13 +148,13 @@ struct BankSearchView: View {
                 Text("入门").tag(1)
                 Text("进阶").tag(2)
             }.pickerStyle(.segmented)
-            Button { choosingModel = true } label: {
+            Button { generationTask?.cancel(); generating = false; choosingModel = true } label: {
                 VStack(alignment: .leading, spacing: 3) {
                     Label("切换 / 测试 AI 模型", systemImage: "arrow.triangle.2.circlepath")
                     Text(profiles.active.map { $0.name + " · " + ($0.model.isEmpty ? "未选择模型" : $0.model) } ?? "点此选择、测试模型或添加服务")
                         .font(.caption).foregroundColor(.secondary)
                 }
-            }.disabled(generating).accessibilityLabel("切换 / 测试 AI 模型")
+            }.accessibilityLabel("切换 / 测试 AI 模型")
             NavigationLink("章节练习 · \(store.lessons.flatMap(\.exercises).count) 道") { LegacyExercisesView() }
             if !bank.message.isEmpty { Text(bank.message).font(.caption).foregroundColor(.secondary) }
         }
@@ -184,9 +186,13 @@ struct BankSearchView: View {
     }
     private func generate(_ profile: AIProfile) {
         generating = true
-        Task {
-            do { generated = try await bank.generate(topic: query, profile: profile) }
-            catch { self.error = error.localizedDescription }
+        generationTask = Task {
+            do {
+                let item = try await bank.generate(topic: query, profile: profile)
+                guard !Task.isCancelled else { return }
+                generated = item
+            }
+            catch { if !Task.isCancelled { self.error = error.localizedDescription } }
             generating = false
         }
     }
