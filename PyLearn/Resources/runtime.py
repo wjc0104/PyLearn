@@ -1,4 +1,5 @@
 """Portable learning helpers. The native bridge calls request() on one queue."""
+import ast
 import builtins
 import contextlib
 import io
@@ -51,10 +52,23 @@ def _error(exc):
             'hint': hints.get(kind, '查看错误类型和提示，检查对应代码行。')}
 
 
-def _compile(source):
+def _compile(source, guard_name=None):
     if len(source.encode('utf-8')) > MAX_SOURCE:
         raise ValueError('脚本不能超过 512 KiB。')
-    return compile(source, FILENAME, 'exec')
+    if guard_name is None:
+        return compile(source, FILENAME, 'exec')
+    tree = ast.parse(source, FILENAME)
+
+    class Guards(ast.NodeTransformer):
+        def generic_visit(self, node):
+            node = super().generic_visit(node)
+            if isinstance(node, (ast.While, ast.For, ast.AsyncFor, ast.ExceptHandler)):
+                call = ast.Expr(ast.Call(ast.Name(guard_name, ast.Load()), [], []))
+                node.body.insert(0, ast.copy_location(call, node))
+            return node
+
+    # A caught trace exception disables tracing; loop/handler guards remain active.
+    return compile(ast.fix_missing_locations(Guards().visit(tree)), FILENAME, 'exec')
 
 
 def analyze(source, prefix):
@@ -135,13 +149,16 @@ def execute(source, write, read, cancelled, timeout=10):
 
     status, error = 'success', None
     try:
-        code = _compile(source)
+        guard_name = '__pylearn_check'
+        while guard_name in source:
+            guard_name += '_'
+        code = _compile(source, guard_name)
         builtins.input = ask
         time.sleep = sleep
         with contextlib.redirect_stdout(Writer()), contextlib.redirect_stderr(Writer()):
             sys.settrace(trace)
             # shortcut: cancellation is cooperative; arbitrary C extensions cannot be force-killed.
-            exec(code, {'__name__': '__main__', '__file__': FILENAME})
+            exec(code, {'__name__': '__main__', '__file__': FILENAME, guard_name: check})
     except _Stopped:
         status = 'stopped'
     except _TimedOut:

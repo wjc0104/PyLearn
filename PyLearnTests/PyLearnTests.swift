@@ -52,5 +52,24 @@ final class PyLearnTests: XCTestCase {
             stopped.fulfill()
         }
         wait(for: [stopped], timeout: 30)
+        let next = expectation(description: "Next run after stopping")
+        runtime.performRequest("{\"action\":\"run\",\"source\":\"print(42)\"}") { response in
+            XCTAssertTrue(response.contains("success"), response)
+            next.fulfill()
+        }
+        wait(for: [next], timeout: 10)
+    }
+
+    func testConsoleMenuIsVisibleBeforeInputIsRequested() {
+        let done = expectation(description: "Input with flushed output")
+        let runtime = PLPythonRuntime.shared()
+        var output = ""
+        runtime.outputHandler = { output = $0 }
+        runtime.inputHandler = { _ in
+            XCTAssertTrue(output.contains("2. 返回"), output)
+            runtime.cancel()
+        }
+        runtime.performRequest("{\"action\":\"run\",\"source\":\"print('菜单')\\nprint('1. 学习')\\nprint('2. 返回')\\ninput('请选择：')\"}") { _ in done.fulfill() }
+        wait(for: [done], timeout: 30)
     }
 }

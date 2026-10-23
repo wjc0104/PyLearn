@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import time
 import unittest
+import subprocess
+import sys
 
 
 RUNTIME_PATH = Path(__file__).parents[1] / 'PyLearn/Resources/runtime.py'
@@ -120,6 +122,22 @@ class RuntimeTests(unittest.TestCase):
     def test_json_request_boundary(self):
         response = json.loads(self.runtime.request(json.dumps({'action':'analyze','source':'print(1)','prefix':'pri'})))
         self.assertIn('print', response['completions'])
+
+    def test_bare_except_cannot_swallow_stop_and_disable_timeout(self):
+        probe = f'''
+import importlib.util, json
+spec = importlib.util.spec_from_file_location('runtime', {str(RUNTIME_PATH)!r})
+runtime = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(runtime)
+source = "while True:\\n    try:\\n        while True: pass\\n    except:\\n        pass"
+print(json.dumps(runtime.execute(source, lambda _:None, lambda _:None, lambda:False, .02)))
+'''
+        try:
+            result = subprocess.run([sys.executable, '-c', probe], capture_output=True, text=True, timeout=2)
+        except subprocess.TimeoutExpired:
+            self.fail('An except block swallowed the timeout and left the interpreter running forever')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['status'], 'timeout')
 
 
 if __name__ == '__main__':

@@ -39,4 +39,4 @@ Scripts are saved atomically in `Documents/PyLearn/library.json`. If existing st
 
 See [design](docs/superpowers/specs/2026-10-23-pylearn-design.md) and [implementation plan](docs/superpowers/plans/2026-10-23-pylearn-mvp.md). Development's primary local directory is `C:\Users\wm14\Desktop\PyLearn`; the earlier workspace remains a backup.
 
-Third-party licenses and attribution are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and bundled with the app. Original application source is retained in this private repository; this repository does not grant a public license to the original application code.
+Third-party licenses and attribution are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and bundled with the app. The user authorized making this repository public for GitHub-hosted builds. A license for reuse of the original application code has not been selected; third-party components retain their own licenses.

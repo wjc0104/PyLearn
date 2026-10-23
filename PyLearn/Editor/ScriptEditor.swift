@@ -29,7 +29,7 @@ struct ScriptEditor: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(exercise.prompt).font(.subheadline)
                     if let grade { Text(grade).font(.caption).foregroundColor(.teal) }
-                }.frame(maxWidth: .infinity, alignment: .leading).padding(12).background(Color.teal.opacity(.08))
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(12).background(Color.teal.opacity(0.08))
             }
             CodeEditor(text: $text, selection: $selection, controller: editor, editable: !session.running, errorLine: currentProblem?.line)
                 .frame(minHeight: 160)
@@ -54,7 +54,7 @@ struct ScriptEditor: View {
                         Text(problem.hint).font(.caption)
                         Text(problem.message).font(.system(.caption2, design: .monospaced)).lineLimit(3)
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(10)
-                }.foregroundColor(.red).background(Color.red.opacity(.07))
+                }.foregroundColor(.red).background(Color.red.opacity(0.07))
             }
             if consolePresented { console }
             if let error = store.error { Text(error).font(.caption2).foregroundColor(.red).padding(5) }

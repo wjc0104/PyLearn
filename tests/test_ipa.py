@@ -70,3 +70,10 @@ class IPATests(unittest.TestCase):
         self.path.write_bytes(b'not a zip')
         with self.assertRaises((ValueError, zipfile.BadZipFile)):
             self.module.inspect_ipa(self.path)
+
+    def test_rejects_fake_main_even_with_two_real_frameworks(self):
+        self.package(main=b'not executable')
+        with zipfile.ZipFile(self.path, 'a') as z:
+            z.writestr('Payload/PyLearn.app/Frameworks/math.framework/math', macho())
+        with self.assertRaisesRegex(ValueError, 'Mach-O|executable'):
+            self.module.inspect_ipa(self.path)

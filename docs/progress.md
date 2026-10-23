@@ -8,6 +8,9 @@ Plan: `docs/superpowers/plans/2026-10-23-pylearn-mvp.md`
 - Task 1 complete: runtime tests were observed failing before implementation; 17 portable tests passed including 8 lessons / 16 exercise solutions.
 - Task 2 in progress: native bridge, files, SwiftUI screens and Runestone integration written. Native tests await the macOS workflow.
 - Task 3 in progress: IPA inspector tests were observed failing before implementation; six additional inspector tests now pass.
+- GitHub blocked the first private build before allocating a runner, citing payments/spending limits. User explicitly authorized making PyLearn public; visibility changed and the macOS runner started successfully.
+- Independent review found three substantive issues: caught trace exceptions could disable cancellation, output was not flushed before an input prompt, and malformed required executables could pass IPA validation. Portable regressions for the cancellation and executable checks were observed failing before fixes; native input-flush coverage was added to simulator tests.
+- Final: fixed cancellation swallowing and fake executable validation — targeted regressions RED to GREEN, full portable suite 25/25. Native output-flush fix awaits simulator execution.
 - Ruling: use private repository and working name PyLearn — protect source until naming/publication preferences are specified; renaming is reversible.
 - Ruling: use native CPython 3.13 with cooperative cancellation — preserves offline execution on iOS 16.3; arbitrary blocking C extensions remain a documented limit.
 - Ruling: use inline execution with one independent whole-branch review — user requested continued development without further planning gates.

@@ -35,7 +35,11 @@ static PyObject *nativeRead(PyObject *self, PyObject *args) {
     NSString *text = [NSString stringWithUTF8String:prompt] ?: @"";
     [runtimeInstance.inputCondition lock];
     runtimeInstance.answer = nil;
-    dispatch_async(dispatch_get_main_queue(), ^{ if (runtimeInstance.inputHandler) runtimeInstance.inputHandler(text); });
+    NSString *snapshot = [runtimeInstance.output copy];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (runtimeInstance.outputHandler) runtimeInstance.outputHandler(snapshot);
+        if (runtimeInstance.inputHandler) runtimeInstance.inputHandler(text);
+    });
     Py_BEGIN_ALLOW_THREADS
     while (!runtimeInstance.answer && !runtimeInstance.cancellationRequested) {
         [runtimeInstance.inputCondition waitUntilDate:[NSDate dateWithTimeIntervalSinceNow:.1]];

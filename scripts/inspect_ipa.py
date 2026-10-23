@@ -75,6 +75,8 @@ def inspect_ipa(path):
             with archive.open(name) as handle:
                 magic = handle.read(4)
             if magic not in (b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe'):
+                if name in (base + executable, base + 'Frameworks/Python.framework/Python'):
+                    raise ValueError('Required executable is not a valid Mach-O: ' + name)
                 continue
             slices = _machos(archive.read(name))
             device = [s for s in slices if s[0] == ARM64]

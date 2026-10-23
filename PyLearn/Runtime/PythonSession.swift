@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 struct PythonProblem: Decodable {
     let kind: String

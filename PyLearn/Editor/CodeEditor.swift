@@ -72,7 +72,7 @@ struct CodeEditor: UIViewRepresentable {
         }
         view.isEditable = editable
         if let line = errorLine, let range = EditorText.lineRange(in: text, line: line) {
-            view.highlightedRanges = [HighlightedRange(range: range, color: UIColor.systemRed.withAlphaComponent(.12))]
+            view.highlightedRanges = [HighlightedRange(range: range, color: UIColor.systemRed.withAlphaComponent(0.12))]
         } else { view.highlightedRanges = [] }
         context.coordinator.updating = false
     }
@@ -109,7 +109,7 @@ private final class PythonTheme: Theme {
     let invisibleCharactersColor = UIColor.tertiaryLabel
     let pageGuideHairlineColor = UIColor.separator
     let pageGuideBackgroundColor = UIColor.clear
-    let markedTextBackgroundColor = UIColor.systemBlue.withAlphaComponent(.15)
+    let markedTextBackgroundColor = UIColor.systemBlue.withAlphaComponent(0.15)
     func textColor(for highlightName: String) -> UIColor? {
         switch highlightName.components(separatedBy: ".").first {
         case "keyword": return .systemPurple
