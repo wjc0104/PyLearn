@@ -22,7 +22,8 @@ struct GitView: View {
             Section("提交所有修改") {
                 TextField("提交说明", text: $message)
                 Button("保存一个提交") { perform("commit", extra: ["message":message]) }.disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                Text("提交会记录项目中新建和修改的文件；推送后电脑或其他设备才能拉取。").font(.caption).foregroundColor(.secondary)
+                Button("提交并推送") { perform("commit_push", extra: ["message":message]) }.disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || remote.isEmpty)
+                Text("提交会记录项目中新建、修改和删除的文件。“保存一个提交”只保存在本机；“提交并推送”成功后，电脑或其他设备就能拉取。").font(.caption).foregroundColor(.secondary)
             }
             Section("分支") {
                 TextField("新分支名", text: $branch).autocorrectionDisabled().textInputAutocapitalization(.never)
@@ -72,7 +73,7 @@ struct GitView: View {
     private func perform(_ operation: String, extra: [String: Any] = [:]) {
         do {
             try store.flushOrThrow()
-            if operation == "pull" || operation == "push" { try saveCredentials() }
+            if operation == "pull" || operation == "push" || operation == "commit_push" { try saveCredentials() }
         } catch { report = "已取消 Git 操作，请先检查保存状态或远程配置。\n" + error.localizedDescription; return }
         var payload: [String: Any] = ["action":"git", "operation":operation, "directory":store.projectRoot(project.id).path, "remote":remote, "username":username, "token":token]
         for (key,value) in extra { payload[key] = value }

@@ -3,6 +3,95 @@ import XCTest
 
 final class PyLearnTests: XCTestCase {
     @MainActor
+    func testModelTestDoesNotSwitchUntilUserConfirmsAndRejectsStaleResults() async throws {
+        let suite = "PyLearn-tests-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let profiles = AIProfiles(defaults: defaults)
+        let original = AIProfile(name: "current", model: "old")
+        let candidate = AIProfile(name: "candidate", baseURL: "https://models.test.invalid/v1", model: "saved")
+        profiles.items = [original, candidate]; profiles.selected = original.id.uuidString
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ModelTestProtocol.self]
+        let transport = URLSession(configuration: configuration)
+        defer { transport.invalidateAndCancel() }
+        ModelTestProtocol.status = 200
+        let verified = try await profiles.testModel(candidate, model: "working", transport: transport)
+        XCTAssertEqual(verified.response, "OK")
+        XCTAssertEqual(profiles.active?.id, original.id, "Testing must not change the active model")
+        try profiles.use(verified)
+        XCTAssertEqual(profiles.active?.model, "working")
+        let second = try await profiles.testModel(profiles.items[1], model: "another", transport: transport)
+        profiles.items[1].baseURL = "https://changed.test.invalid/v1"
+        XCTAssertThrowsError(try profiles.use(second), "A result from an edited configuration must not be activated")
+        XCTAssertEqual(profiles.active?.model, "working")
+    }
+
+    @MainActor
+    func testProjectFileAndFolderDeletionClearsCacheAndRepairsEntry() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let store = LearningStore(directory: base)
+        let project = try store.createProject(name: "删除测试")
+        let main = try store.openProjectFile(project, path: "main.py")
+        let nested = try store.createProjectFile(project, path: "模块/辅助.py", source: "value=1")
+        _ = try store.createProjectFile(project, path: "保留.py", source: "print(1)")
+        store.update(nested.id, source: "value=99")
+        try store.deleteProjectFile(project, path: "模块")
+        try store.delete(main.id)
+        try store.flushOrThrow()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.projectRoot(project.id).appendingPathComponent("模块").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.projectRoot(project.id).appendingPathComponent("main.py").path))
+        let restored = LearningStore(directory: base)
+        XCTAssertNil(restored.document(main.id)); XCTAssertNil(restored.document(nested.id))
+        XCTAssertEqual(restored.projects.first?.entry, "保留.py")
+        let backups = FileManager.default.enumerator(at: base.appendingPathComponent("deleted-project-files"), includingPropertiesForKeys: nil)!
+        let savedHelper = backups.compactMap { $0 as? URL }.first { $0.lastPathComponent == "辅助.py" }
+        XCTAssertEqual(try String(contentsOf: XCTUnwrap(savedHelper), encoding: .utf8), "value=99")
+        XCTAssertThrowsError(try store.deleteProjectFile(project, path: "../outside"))
+        XCTAssertThrowsError(try store.deleteProjectFile(project, path: ".git/config"))
+    }
+
+    func testEmbeddedGitCommitsHistoryAndDeletedFiles() async throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        func git(_ operation: String, message: String = "") async throws -> [String: Any] {
+            let data = try JSONSerialization.data(withJSONObject: ["action":"git", "operation":operation, "directory":base.path, "message":message])
+            let response = await withCheckedContinuation { continuation in
+                PLPythonRuntime.shared().performRequest(String(decoding: data, as: UTF8.self)) { continuation.resume(returning: $0) }
+            }
+            let result = try JSONSerialization.jsonObject(with: Data(response.utf8)) as! [String: Any]
+            XCTAssertEqual(result["status"] as? String, "success", response)
+            return result
+        }
+        _ = try await git("init")
+        let file = base.appendingPathComponent("中文练习.py")
+        try Data("print(42)".utf8).write(to: file)
+        _ = try await git("commit", message: "iOS first commit")
+        let history = try await git("log")
+        XCTAssertTrue((history["report"] as? String)?.contains("iOS first commit") == true)
+        try FileManager.default.removeItem(at: file)
+        _ = try await git("commit", message: "iOS delete file")
+        let secondHistory = try await git("log")
+        XCTAssertTrue((secondHistory["report"] as? String)?.contains("iOS delete file") == true)
+        let state = try await git("status")
+        XCTAssertEqual(state["report"] as? String, "工作区干净。")
+    }
+
+    func testEmbeddedGitCanCloneOverRealHTTPS() async throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let data = try JSONSerialization.data(withJSONObject: ["action":"git", "operation":"clone", "directory":base.path, "remote":"https://github.com/octocat/Hello-World.git"])
+        let response = await withCheckedContinuation { continuation in
+            PLPythonRuntime.shared().performRequest(String(decoding: data, as: UTF8.self)) { continuation.resume(returning: $0) }
+        }
+        let result = try JSONSerialization.jsonObject(with: Data(response.utf8)) as! [String: Any]
+        XCTAssertEqual(result["status"] as? String, "success", response)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: base.appendingPathComponent("README").path))
+    }
+
+    @MainActor
     func testModelMustRespondBeforeItCanReplaceCurrentSelection() async throws {
         let suite = "PyLearn-tests-" + UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!

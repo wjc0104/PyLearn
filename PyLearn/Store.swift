@@ -132,9 +132,36 @@ final class LearningStore: ObservableObject {
     }
 
     func delete(_ id: UUID) throws {
+        if let document = document(id), let projectID = document.projectID, let path = document.relativePath,
+           let project = projects.first(where: { $0.id == projectID }) {
+            try deleteProjectFile(project, path: path)
+            return
+        }
         let previous = documents
         documents.removeAll { $0.id == id }
         do { try persist() } catch { documents = previous; throw error }
+    }
+
+    func deleteProjectFile(_ project: ScriptProject, path: String) throws {
+        guard projects.contains(where: { $0.id == project.id }),
+              !path.split(separator: "/").contains(where: { $0.lowercased() == ".git" }) else { throw failure("不能删除 Git 数据或不存在的项目。") }
+        let source = try projectFile(project.id, path: path)
+        try flushOrThrow()
+        let backup = directory.appendingPathComponent("deleted-project-files", isDirectory: true).appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let target = backup.appendingPathComponent(path)
+        try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.moveItem(at: source, to: target)
+        let previousDocuments = documents, previousProjects = projects
+        documents.removeAll { $0.projectID == project.id && ($0.relativePath == path || $0.relativePath?.hasPrefix(path + "/") == true) }
+        do {
+            try repairProjectEntry(project)
+            try persist()
+        } catch {
+            documents = previousDocuments; projects = previousProjects
+            do { try FileManager.default.moveItem(at: target, to: source) }
+            catch { throw failure("删除未能保存，原文件仍保存在恢复副本中：\(target.path)\n\(error.localizedDescription)") }
+            throw error
+        }
     }
 
     func markComplete(_ id: String) {

@@ -166,6 +166,7 @@ struct ProjectView: View {
     @State private var adding = false
     @State private var addingFolder = false
     @State private var addingScript = false
+    @State private var deletingFile: ProjectFile?
     let projectID: UUID
     var folder = ""
     private var project: ScriptProject? { store.projects.first { $0.id == projectID } }
@@ -188,6 +189,10 @@ struct ProjectView: View {
                     ForEach(children) { file in
                         if file.isDirectory {
                             NavigationLink { ProjectView(projectID: projectID, folder: file.path) } label: { Label(fileName(file.path), systemImage: "folder") }
+                                .contextMenu {
+                                    Button("复制相对路径") { UIPasteboard.general.string = file.path }
+                                    Button(role: .destructive) { deletingFile = file } label: { Label("删除文件夹", systemImage: "trash") }
+                                }
                         } else {
                             Button { open(project, path: file.path) } label: { Label(fileName(file.path), systemImage: "doc.text").foregroundColor(.primary) }
                             .contextMenu {
@@ -196,6 +201,7 @@ struct ProjectView: View {
                                 if file.path.lowercased().hasSuffix(".py") {
                                     Button("设为运行入口") { do { try store.setEntry(project, path: file.path) } catch { store.error = error.localizedDescription } }
                                 }
+                                Button(role: .destructive) { deletingFile = file } label: { Label("删除文件", systemImage: "trash") }
                             }
                         }
                     }
@@ -230,6 +236,16 @@ struct ProjectView: View {
             Button("取消", role: .cancel) {}
         }
         .onAppear { refresh() }
+        .confirmationDialog("删除项目中的“\(deletingFile.map { fileName($0.path) } ?? "")”？", isPresented: Binding(get: { deletingFile != nil }, set: { if !$0 { deletingFile = nil } }), titleVisibility: .visible) {
+            Button("确认删除", role: .destructive) {
+                if let project, let file = deletingFile {
+                    do { try store.deleteProjectFile(project, path: file.path); refresh() }
+                    catch { store.error = error.localizedDescription }
+                }
+                deletingFile = nil
+            }
+            Button("取消", role: .cancel) { deletingFile = nil }
+        } message: { Text("文件夹中的内容也会一起删除。本机保留恢复副本；Git 仓库中的删除需要提交并推送后才会同步到远端。") }
         .sheet(item: $selected, onDismiss: refresh) { document in NavigationStack { ScriptEditor(documentID: document.id) } }
         .sheet(isPresented: $addingScript, onDismiss: refresh) { NavigationStack { AddScriptToProjectView(projectID: projectID, folder: folder) } }
         .alert("项目提示", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("知道了") { store.error = nil } } message: { Text(store.error ?? "") }

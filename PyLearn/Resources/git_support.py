@@ -19,6 +19,13 @@ def perform(payload):
     path = str(Path(payload['directory']).resolve())
     operation = payload.get('operation', 'status')
     try:
+        if operation == 'commit_push':
+            _remote(payload.get('remote', ''))
+            committed = perform(dict(payload, operation='commit'))
+            if committed['status'] != 'success': return committed
+            pushed = perform(dict(payload, operation='push'))
+            pushed['report'] = committed['report'] + '\n\n' + pushed['report']
+            return pushed
         output = io.BytesIO()
         if operation in ('clone', 'pull', 'push'):
             import certifi, urllib3
@@ -42,11 +49,22 @@ def perform(payload):
                 raise ValueError('作者格式无效。')
             # Explicitly hash tracked files; unchanged size/timestamps can hide rapid edits.
             with Repo(path) as repo:
+                # iOS cannot spawn shell hooks, including post-commit despite no_verify.
+                repo.hooks.clear()
                 repo.get_worktree().stage(list(repo.open_index()), config=repo.get_config_stack())
-            porcelain.add(path)
-            sha = porcelain.commit(path, message=payload['message'].encode(), author=author.encode(),
-                                   committer=author.encode(), no_verify=True, sign=False)
-            report = '提交完成：' + sha.decode()[:12]
+                porcelain.add(repo)
+                try:
+                    unchanged = repo.open_index().commit(repo.object_store) == repo[repo.head()].tree
+                except KeyError:
+                    unchanged = False
+                if unchanged:
+                    sha = repo.head()
+                    report = '没有新的文件修改；当前本地提交：' + sha.decode()[:12]
+                else:
+                    sha = porcelain.commit(repo, message=payload['message'].encode(), author=author.encode(),
+                                           committer=author.encode(), no_verify=True, sign=False)
+                    report = '本地提交完成：' + sha.decode()[:12]
+                report += '\n尚未推送；推送成功后其他设备才能拉取。'
         elif operation == 'diff':
             porcelain.diff(path, outstream=output)
             report = output.getvalue().decode('utf8', 'replace') or '没有未暂存的差异。'
@@ -78,7 +96,7 @@ def perform(payload):
             else:
                 result = porcelain.push(path, remote, refspecs=[local_ref + b':' + remote_ref], force=False, errstream=output, outstream=output, **options)
                 if any(result.ref_status.values()): raise ValueError('远程拒绝推送，请先检查权限或拉取最新提交。')
-            report = '同步完成。'
+            report = '拉取完成，项目已更新。' if operation == 'pull' else '推送成功，远端已更新；其他设备现在可以拉取。'
         elif operation == 'status':
             s = porcelain.status(path, untracked_files='all')
             lines = []
@@ -96,7 +114,12 @@ def perform(payload):
             pass
         return {'status':'success', 'report':report[:20000], 'branches':branches}
     except Exception as exc:
-        message = str(exc)
+        if isinstance(exc, porcelain.DivergedBranches):
+            message = ('远端已有本机未包含的提交，请先拉取再推送。若拉取仍提示分歧，请在电脑 Git 客户端合并两端提交，再拉取。' if operation == 'push' else
+                       '本地与远端提交已分歧，当前拉取仅支持快进。请在电脑 Git 客户端合并两端提交，再拉取。')
+            message += '\n已停止同步以保护两端代码，不会强制覆盖。'
+        else:
+            message = str(exc)
         for secret in (payload.get('token'), payload.get('username')):
             if secret: message = message.replace(secret, '***')
-        return {'status':'error', 'report':'Git 操作失败；本地修改已保留。\n' + message[:2000]}
+        return {'status':'error', 'report':'Git ' + {'commit':'提交','push':'推送','pull':'拉取','clone':'克隆'}.get(operation, operation) + '失败；本地文件和已有提交已保留。\n' + message[:2000]}

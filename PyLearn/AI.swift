@@ -4,7 +4,7 @@ import Foundation
 enum AIProtocol: String, Codable, CaseIterable {
     case chat = "OpenAI 兼容", responses = "OpenAI Responses", anthropic = "Claude 原生", gemini = "Gemini 原生"
 }
-struct AIProfile: Codable, Identifiable {
+struct AIProfile: Codable, Identifiable, Equatable {
     var id = UUID()
     var name = "新配置"
     var baseURL = "https://api.deepseek.com/v1"
@@ -23,6 +23,12 @@ struct AIProfile: Codable, Identifiable {
         ("Ollama 局域网", "http://192.168.1.100:11434/v1", .chat),
         ("自定义", "", .chat)
     ]
+}
+struct AIModelVerification {
+    let original: AIProfile
+    let candidate: AIProfile
+    let response: String
+    fileprivate let key: String
 }
 @MainActor final class AIProfiles: ObservableObject {
     static let shared = AIProfiles()
@@ -51,10 +57,23 @@ struct AIProfile: Codable, Identifiable {
         defaults.set(selected, forKey: "ai.selected")
     }
     func useVerified(_ profile: AIProfile, model: String, transport: URLSession? = nil) async throws {
+        let verified = try await testModel(profile, model: model, transport: transport)
+        try use(verified)
+    }
+    func testModel(_ profile: AIProfile, model: String, transport: URLSession? = nil) async throws -> AIModelVerification {
         var candidate = profile
         candidate.model = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard items.contains(where: { $0.id == profile.id }) else { throw AIClient.failure("该配置已被删除。") }
-        try await saveVerified(candidate, key: SecretStore.read("ai." + profile.id.uuidString) ?? "", transport: transport)
+        guard items.contains(profile) else { throw AIClient.failure("该配置已被修改或删除，请刷新后重试。") }
+        let key = SecretStore.read("ai." + profile.id.uuidString) ?? ""
+        let response = try await AIClient.text(candidate, key: key, prompt: "请只回复 OK。", maxTokens: 256, transport: transport)
+        try Task.checkCancellation()
+        return AIModelVerification(original: profile, candidate: candidate, response: response, key: key)
+    }
+    func use(_ verified: AIModelVerification) throws {
+        guard items.contains(verified.original), (SecretStore.read("ai." + verified.original.id.uuidString) ?? "") == verified.key else {
+            throw AIClient.failure("服务配置或密钥已变化，请重新测试后使用。")
+        }
+        try save(verified.candidate, key: verified.key)
     }
     func remove(_ id: UUID) {
         items.removeAll { $0.id == id }
@@ -143,7 +162,7 @@ enum AIClient {
             let candidate = (json["candidates"] as? [[String: Any]])?.first
             value = ((candidate?["content"] as? [String: Any])?["parts"] as? [[String: Any]])?.compactMap { $0["text"] as? String }.joined()
         }
-        guard let value, !value.isEmpty else { throw failure("服务没有返回文字，请检查模型和协议。") }
+        guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("服务没有返回文字，请检查模型和协议。") }
         return value
     }
 }
@@ -153,6 +172,7 @@ struct AIProfilesView: View {
     @State private var testing = false
     @State private var message = ""
     @State private var selectionTask: Task<Void, Never>?
+    @State private var verification: AIModelVerification?
     var body: some View {
         List {
             Section("当前出题配置") {
@@ -160,8 +180,9 @@ struct AIProfilesView: View {
                     Button {
                         testing = true
                         selectionTask = Task {
-                            do { try await profiles.useVerified(profile, model: profile.model); message = "本次请求成功，已切换。" }
+                            do { verification = try await profiles.testModel(profile, model: profile.model); message = "测试通过，等待确认是否使用。" }
                             catch { if !Task.isCancelled { message = "切换失败，继续使用原模型。\n" + error.localizedDescription } }
+                            guard !Task.isCancelled else { return }
                             testing = false
                         }
                     } label: { Label(profile.name, systemImage: profiles.active?.id == profile.id ? "checkmark.circle.fill" : "circle") }
@@ -186,6 +207,13 @@ struct AIProfilesView: View {
         }.navigationTitle("AI 服务商").disabled(testing)
             .onDisappear { selectionTask?.cancel(); testing = false }
             .sheet(item: $editing) { profile in NavigationStack { AIProfileEditor(profile: profile) } }
+            .alert("模型测试通过", isPresented: Binding(get: { verification != nil }, set: { if !$0 { verification = nil } }), presenting: verification) { verified in
+                Button("使用此模型") {
+                    do { try profiles.use(verified); message = "已切换为 " + verified.candidate.model }
+                    catch { message = error.localizedDescription }
+                }
+                Button("暂不切换", role: .cancel) { message = "测试通过，继续使用原模型。" }
+            } message: { verified in Text(verified.candidate.model + " 本次请求成功。返回：" + String(verified.response.prefix(160))) }
     }
 }
 struct AIProfileEditor: View {
@@ -196,6 +224,7 @@ struct AIProfileEditor: View {
     @State private var models: [String] = []
     @State private var loading = false
     @State private var saveTask: Task<Void, Never>?
+    @State private var saved = false
     var body: some View {
         Form {
             TextField("配置名称", text: $profile.name)
@@ -215,13 +244,14 @@ struct AIProfileEditor: View {
             Button("测试并保存配置") {
                 loading = true
                 saveTask = Task {
-                    do { try await AIProfiles.shared.saveVerified(profile, key: key); dismiss() }
+                    do { try await AIProfiles.shared.saveVerified(profile, key: key); saved = true }
                     catch { if !Task.isCancelled { message = error.localizedDescription } }
                     loading = false
                 }
             }.disabled(loading)
-        }.navigationTitle(profile.name).onAppear { key = SecretStore.read("ai." + profile.id.uuidString) ?? "" }
+        }.disabled(loading).navigationTitle(profile.name).onAppear { key = SecretStore.read("ai." + profile.id.uuidString) ?? "" }
             .onDisappear { saveTask?.cancel() }
             .toolbar { Button("取消") { dismiss() } }
+            .alert("配置测试通过", isPresented: $saved) { Button("完成") { dismiss() } } message: { Text(profile.model + " 本次文字请求成功，配置已保存并启用。") }
     }
 }

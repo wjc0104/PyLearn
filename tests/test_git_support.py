@@ -19,6 +19,16 @@ class GitTests(unittest.TestCase):
     self.assertIn('iOS commit',history['report'])
     self.assertEqual(call('status')['report'],'工作区干净。')
 
+ def test_repeating_commit_does_not_create_empty_history_entries(self):
+  with tempfile.TemporaryDirectory() as d:
+   def call(op,**extra): return git_support.perform(dict(directory=d,operation=op,**extra))
+   call('init'); Path(d,'main.py').write_text('print(1)')
+   call('commit',message='initial')
+   with git_support.Repo(d) as repo: first=repo.head()
+   result=call('commit',message='retry')
+   self.assertEqual(result['status'],'success',result)
+   with git_support.Repo(d) as repo: self.assertEqual(repo.head(),first)
+
  def test_combined_commit_reports_local_success_when_push_is_rejected(self):
   with tempfile.TemporaryDirectory() as d:
    git_support.perform(dict(directory=d,operation='init'))
