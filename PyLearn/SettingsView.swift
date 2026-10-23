@@ -67,7 +67,7 @@ struct SettingsView: View {
                 }
                 Section("AI 出题与翻译") { NavigationLink("管理服务商与 API 配置") { AIProfilesView() } }
                 Section("关于") {
-                    Text("PyLearn \(Bundle.main.object(forInfoDictionaryKey: \"CFBundleShortVersionString\") as? String ?? \"\") · CPython 3.15.1")
+                    Text("PyLearn " + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") + " · CPython 3.15.1")
                     Text("Runestone 编辑器 · Jedi 补全 · Dulwich Git").font(.caption)
                     Text("由 OpenAI Codex 辅助开发与编辑。脚本在本机 App 进程内运行。").font(.caption).foregroundColor(.secondary)
                 }
