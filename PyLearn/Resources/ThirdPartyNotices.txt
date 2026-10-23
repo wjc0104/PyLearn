@@ -77,7 +77,7 @@ SOFTWARE.
 
 
 Python Apple Support
-Source: https://raw.githubusercontent.com/beeware/Python-Apple-support/3.13/LICENSE
+Source: https://raw.githubusercontent.com/beeware/Python-Apple-support/3.15/LICENSE
 
 Copyright (c) 2014-2018 Russell Keith-Magee.
 
@@ -101,7 +101,7 @@ THE SOFTWARE.
 
 
 CPython
-Source: https://raw.githubusercontent.com/python/cpython/3.13/LICENSE
+Source: https://raw.githubusercontent.com/python/cpython/3.15/LICENSE
 
 A. HISTORY OF THE SOFTWARE
 ==========================

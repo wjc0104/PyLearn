@@ -3,12 +3,23 @@ import ast
 import builtins
 import contextlib
 import io
+import importlib.abc
+import importlib.machinery
+import importlib.util
 import json
 import keyword
+import os
+from pathlib import Path
 import re
 import sys
 import time
 import traceback
+import types
+import unittest
+
+_packages = Path(__file__).parent / 'packages'
+if _packages.is_dir():
+    sys.path.insert(0, str(_packages))
 
 FILENAME = '<学习脚本>'
 MAX_SOURCE = 512 * 1024
@@ -48,16 +59,19 @@ def _error(exc):
         'RecursionError': '递归调用过深，请检查终止条件。',
         'FileNotFoundError': '没有找到文件，请检查文件路径。',
     }
-    return {'kind': kind, 'message': str(exc), 'line': line,
-            'hint': hints.get(kind, '查看错误类型和提示，检查对应代码行。')}
+    hint = hints.get(kind, '查看错误类型和提示，检查对应代码行。')
+    if kind == 'NameError' and getattr(exc, 'name', None):
+        hint = f'变量“{exc.name}”还没有定义。请检查拼写，或先给它赋值。'
+    return {'kind': kind, 'message': str(exc), 'line': line, 'hint': hint,
+            'traceback': ''.join(traceback.format_exception(exc))}
 
 
-def _compile(source, guard_name=None):
+def _compile(source, guard_name=None, filename=FILENAME):
     if len(source.encode('utf-8')) > MAX_SOURCE:
         raise ValueError('脚本不能超过 512 KiB。')
     if guard_name is None:
-        return compile(source, FILENAME, 'exec')
-    tree = ast.parse(source, FILENAME)
+        return compile(source, filename, 'exec')
+    tree = ast.parse(source, filename)
 
     class Guards(ast.NodeTransformer):
         def generic_visit(self, node):
@@ -68,10 +82,10 @@ def _compile(source, guard_name=None):
             return node
 
     # A caught trace exception disables tracing; loop/handler guards remain active.
-    return compile(ast.fix_missing_locations(Guards().visit(tree)), FILENAME, 'exec')
+    return compile(ast.fix_missing_locations(Guards().visit(tree)), filename, 'exec')
 
 
-def analyze(source, prefix):
+def analyze(source, prefix, line=None, column=None, directory=None, path=None):
     error = None
     try:
         _compile(source)
@@ -80,11 +94,74 @@ def analyze(source, prefix):
     names = set(keyword.kwlist) | set(dir(builtins))
     names.update(re.findall(r'[^\W\d]\w*', source, re.UNICODE))
     matches = sorted(n for n in names if prefix and n.startswith(prefix) and n != prefix)
-    return {'error': error, 'completions': matches[:8]}
+    signature = ''
+    if line is not None and column is not None:
+        try:
+            import jedi
+            # iOS cannot spawn a Python executable; Script only inspects source.
+            script = jedi.Script(source, path=path,
+                project=jedi.Project(directory, load_unsafe_extensions=False) if directory else None,
+                environment=jedi.InterpreterEnvironment())
+            matches = [c.name for c in script.complete(line, column)] or matches
+            signature = '\n'.join(s.to_string() for s in script.get_signatures(line, column))
+        except Exception:
+            pass  # New syntax must remain runnable even before Jedi supports it.
+    return {'error': error, 'completions': list(dict.fromkeys(matches))[:30], 'signature': signature}
 
 
-def execute(source, write, read, cancelled, timeout=10):
+@contextlib.contextmanager
+def project_context(directory, guard_name=None, check=None):
+    if not directory:
+        yield
+        return
+    root = Path(directory).resolve(strict=True)
+    old_cwd, old_path = Path.cwd(), sys.path[:]
+    before = sys.modules.copy()
+    missing = object()
+    old_guard = getattr(builtins, guard_name, missing) if guard_name else missing
+    class Loader(importlib.machinery.SourceFileLoader):
+        def source_to_code(self, data, path, *, _optimize=-1):
+            return _compile(importlib.util.decode_source(data) if isinstance(data, bytes) else data, guard_name, path)
+        def get_code(self, fullname):
+            return self.source_to_code(self.get_data(self.path), self.path)
+    class Finder(importlib.abc.MetaPathFinder):
+        def find_spec(self, fullname, path=None, target=None):
+            spec = importlib.machinery.PathFinder.find_spec(fullname, path)
+            if spec and spec.origin and spec.origin.endswith('.py') and Path(spec.origin).resolve().is_relative_to(root):
+                spec.loader = Loader(fullname, spec.origin)
+                return spec
+            return None
+    finder = Finder()
+    try:
+        if guard_name:
+            setattr(builtins, guard_name, check)
+            sys.meta_path.insert(0, finder)
+        os.chdir(root)
+        sys.path.insert(0, str(root))
+        yield
+    finally:
+        for name, module in list(sys.modules.items()):
+            file = getattr(module, '__file__', None)
+            if file:
+                try:
+                    inside = Path(file).resolve().is_relative_to(root)
+                except (ValueError, OSError):
+                    inside = False
+                if inside:
+                    sys.modules.pop(name, None)
+                    if name in before:
+                        sys.modules[name] = before[name]
+        sys.path[:] = old_path
+        os.chdir(old_cwd)
+        if finder in sys.meta_path: sys.meta_path.remove(finder)
+        if guard_name:
+            if old_guard is missing: delattr(builtins, guard_name)
+            else: setattr(builtins, guard_name, old_guard)
+
+
+def execute(source, write, read, cancelled, timeout=10, directory=None, filename=None):
     started = time.monotonic()
+    project_prefix = str(Path(directory).resolve()) + os.sep if directory else None
     paused = 0.0
     waiting = False
     emitted = 0
@@ -99,9 +176,11 @@ def execute(source, write, read, cancelled, timeout=10):
             raise _TimedOut()
 
     def trace(frame, event, arg):
-        if frame.f_code.co_filename == FILENAME:
+        if frame.f_code.co_filename == FILENAME or (project_prefix and frame.f_code.co_filename.startswith(project_prefix)):
             # Opcode events also catch a one-line `while True: pass` loop.
-            frame.f_trace_opcodes = True
+            # Project imports also have AST loop guards; opcode tracing there
+            # would make ordinary module functions needlessly slow.
+            frame.f_trace_opcodes = frame.f_code.co_filename == FILENAME
             check()
         return trace
 
@@ -149,16 +228,16 @@ def execute(source, write, read, cancelled, timeout=10):
 
     status, error = 'success', None
     try:
-        guard_name = '__pylearn_check'
+        guard_name = '__pylearn_check__'
         while guard_name in source:
             guard_name += '_'
         code = _compile(source, guard_name)
         builtins.input = ask
         time.sleep = sleep
-        with contextlib.redirect_stdout(Writer()), contextlib.redirect_stderr(Writer()):
+        with project_context(directory, guard_name, check), contextlib.redirect_stdout(Writer()), contextlib.redirect_stderr(Writer()):
             sys.settrace(trace)
             # shortcut: cancellation is cooperative; arbitrary C extensions cannot be force-killed.
-            exec(code, {'__name__': '__main__', '__file__': FILENAME, guard_name: check})
+            exec(code, {'__name__': '__main__', '__file__': filename or FILENAME, guard_name: check})
     except _Stopped:
         status = 'stopped'
     except _TimedOut:
@@ -177,14 +256,42 @@ def execute(source, write, read, cancelled, timeout=10):
     return {'status': status, 'error': error}
 
 
+def grade(source, module_name, test_source, cancelled=lambda: False):
+    if not re.fullmatch(r'[A-Za-z_]\w*', module_name):
+        raise ValueError('无效的练习模块名称')
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        Path(folder, module_name + '.py').write_text(source, encoding='utf8')
+        test_path = Path(folder, 'pylearn_checks.py')
+        test_path.write_text(test_source, encoding='utf8')
+        out = []
+        runner = ("import unittest\n"
+                  "suite = unittest.TestLoader().discover('.', pattern='pylearn_checks.py')\n"
+                  "result = unittest.TextTestRunner(verbosity=2).run(suite)\n"
+                  "if result.testsRun == 0: raise ValueError('题目没有有效测试')\n"
+                  "if len(result.skipped) == result.testsRun: raise ValueError('所有测试都被跳过')\n"
+                  "if not result.wasSuccessful(): raise AssertionError('部分测试没有通过')")
+        response = execute(runner, out.append, lambda _: None, cancelled, directory=folder)
+        if response['status'] == 'error':
+            response['status'] = 'failed'
+        response['report'] = ''.join(out)
+        return response
+
+
 def request(payload_json):
     payload = json.loads(payload_json)
     source = payload.get('source', '')
     if payload['action'] == 'analyze':
-        result = analyze(source, payload.get('prefix', ''))
+        result = analyze(source, payload.get('prefix', ''), payload.get('line'), payload.get('column'), payload.get('directory'), payload.get('path'))
     elif payload['action'] == 'run':
         import _learnpy_native as native
-        result = execute(source, native.write, native.read, native.cancelled)
+        result = execute(source, native.write, native.read, native.cancelled,
+                         directory=payload.get('directory'), filename=payload.get('path'))
+    elif payload['action'] == 'grade':
+        result = grade(source, payload['module'], payload['tests'])
+    elif payload['action'] == 'git':
+        from git_support import perform
+        result = perform(payload)
     else:
         raise ValueError('未知操作')
     return json.dumps(result, ensure_ascii=False)

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "killer-sudoku-helper",
+    "reason": "\\AppData\\Local\\Temp\\tmp_s_bakf0\\killer_sudoku_helper.py\", line 14, in combinations\n    if sum(seq) == target and len(seq) == size:\n           ^^^\n  File \"C:\\Users\\wm14\\Desktop\\PyLearn\\PyLearn\\Resources\\runtime.py\", line 157, in trace\n    check()\n    ~~~~~^^\n  File \"C:\\Users\\wm14\\Desktop\\PyLearn\\PyLearn\\Resources\\runtime.py\", line 151, in check\n    raise _TimedOut()\nruntime._TimedOut\n\n----------------------------------------------------------------------\nRan 13 tests in 9.981s\n\nFAILED (errors=1)\n"
+  },
+  {
+    "id": "alphametics",
+    "reason": "m8b8y\\alphametics.py\", line 47, in <lambda>\n    map(lambda iters: iters[0][:iters[1]] + (0,) + iters[0][iters[1]:],\n                            ^\n  File \"C:\\Users\\wm14\\Desktop\\PyLearn\\PyLearn\\Resources\\runtime.py\", line 157, in trace\n    check()\n    ~~~~~^^\n  File \"C:\\Users\\wm14\\Desktop\\PyLearn\\PyLearn\\Resources\\runtime.py\", line 151, in check\n    raise _TimedOut()\nruntime._TimedOut\n\n----------------------------------------------------------------------\nRan 10 tests in 9.989s\n\nFAILED (errors=1)\n"
+  }
+]

@@ -32,9 +32,12 @@ class IPATests(unittest.TestCase):
             z.writestr(base + 'PyLearn', main if main is not None else macho())
             z.writestr(base + 'runtime.py', '')
             z.writestr(base + 'lessons.json', '[]')
+            z.writestr(base + 'bank.json', '{}')
+            z.writestr(base + 'packages/jedi/__init__.py', '')
+            z.writestr(base + 'packages/dulwich/__init__.py', '')
             if python:
                 z.writestr(base + 'Frameworks/Python.framework/Python', framework if framework is not None else macho())
-                z.writestr(base + 'python/lib/python3.13/encodings/__init__.py', '')
+                z.writestr(base + 'python/lib/python3.15/encodings/__init__.py', '')
 
     def test_accepts_device_ipa_and_reports_hash(self):
         self.package()

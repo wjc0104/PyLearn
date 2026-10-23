@@ -11,8 +11,8 @@ struct LearningView: View {
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                         Text("从第一行输出，到独立写出函数。")
                             .foregroundColor(.secondary)
-                        ProgressView(value: Double(store.completed.count), total: 16).tint(.teal)
-                        Text("已完成 \(store.completed.count) / 16 道练习")
+                        ProgressView(value: Double(store.lessons.flatMap(\.exercises).filter { store.completed.contains($0.id) }.count), total: 16).tint(.teal)
+                        Text("入门练习：已完成 \(store.lessons.flatMap(\.exercises).filter { store.completed.contains($0.id) }.count) / 16 道")
                             .font(.caption).foregroundColor(.secondary)
                     }.padding(.vertical, 12)
                 }
@@ -61,9 +61,12 @@ private struct LessonDetail: View {
 }
 
 struct ExerciseListView: View {
+    var body: some View { NavigationStack { BankSearchView() } }
+}
+
+struct LegacyExercisesView: View {
     @EnvironmentObject private var store: LearningStore
     var body: some View {
-        NavigationStack {
             List {
                 ForEach(store.lessons) { lesson in
                     Section(lesson.title) {
@@ -74,8 +77,7 @@ struct ExerciseListView: View {
                         }
                     }
                 }
-            }.navigationTitle("编程练习")
-        }
+            }.navigationTitle("入门练习")
     }
 }
 

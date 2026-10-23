@@ -96,8 +96,9 @@ static PyObject *PyInit_learnpy_native(void) { return PyModule_Create(&nativeMod
     if (!PyStatus_Exception(status)) {
         config.module_search_paths_set = 1;
         NSArray<NSString *> *paths = @[
-            [home stringByAppendingPathComponent:@"lib/python3.13"],
-            [home stringByAppendingPathComponent:@"lib/python3.13/lib-dynload"],
+            [home stringByAppendingPathComponent:@"lib/python3.15"],
+            [home stringByAppendingPathComponent:@"lib/python3.15/lib-dynload"],
+            [resources stringByAppendingPathComponent:@"packages"],
             resources
         ];
         for (NSString *path in paths) {

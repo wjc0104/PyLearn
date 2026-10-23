@@ -64,7 +64,8 @@ def inspect_ipa(path):
         if not executable or '/' in executable:
             raise ValueError('Invalid app executable')
         required = [base + executable, base + 'Frameworks/Python.framework/Python',
-                    base + 'python/lib/python3.13/encodings/__init__.py', base + 'runtime.py', base + 'lessons.json']
+                    base + 'python/lib/python3.15/encodings/__init__.py', base + 'runtime.py', base + 'lessons.json',
+                    base + 'bank.json', base + 'packages/jedi/__init__.py', base + 'packages/dulwich/__init__.py']
         for name in required:
             if name not in names:
                 raise ValueError('Required Python/app resource missing: ' + name)

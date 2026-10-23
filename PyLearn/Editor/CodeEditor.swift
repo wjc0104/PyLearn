@@ -5,11 +5,25 @@ import TreeSitterPythonRunestone
 final class EditorController: ObservableObject {
     weak var view: TextView?
     var didEdit: (() -> Void)?
+    var acceptCompletion: (() -> Void)?
     func insert(_ text: String) { view?.insertText(text); didEdit?() }
     func replace(_ range: NSRange, with text: String) { view?.replace(range, withText: text); didEdit?() }
     func undo() { view?.undoManager?.undo(); didEdit?() }
     func redo() { view?.undoManager?.redo(); didEdit?() }
     func dismissKeyboard() { view?.resignFirstResponder() }
+    func selectAll() { if let view { view.selectedRange = NSRange(location: 0, length: (view.text as NSString).length) } }
+}
+
+private struct PythonPair: CharacterPair { let leading: String; let trailing: String }
+
+private final class CompletionTextView: TextView {
+    var acceptCompletion: (() -> Void)?
+    override var keyCommands: [UIKeyCommand]? {
+        let tab = UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(complete))
+        tab.wantsPriorityOverSystemBehavior = true
+        return (super.keyCommands ?? []) + [tab]
+    }
+    @objc private func complete() { acceptCompletion?() }
 }
 
 enum EditorText {
@@ -41,11 +55,17 @@ struct CodeEditor: UIViewRepresentable {
     let controller: EditorController
     let editable: Bool
     let errorLine: Int?
+    @AppStorage("editor.size") private var size = 16.0
+    @AppStorage("editor.font") private var font = "SFMono"
+    @AppStorage("editor.theme") private var themeName = "system"
+    @AppStorage("editor.foreground") private var foreground = "#DDE3ED"
+    @AppStorage("editor.background") private var background = "#20232B"
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> TextView {
-        let view = TextView()
-        view.setState(TextViewState(text: text, theme: PythonTheme(), language: .python))
+        let view = CompletionTextView()
+        view.acceptCompletion = { [weak controller] in controller?.acceptCompletion?() }
+        view.setState(TextViewState(text: text, theme: PythonTheme(size: size, fontName: font, mode: themeName, foreground: foreground, background: background), language: .python))
         view.showLineNumbers = true
         view.lineSelectionDisplayType = .line
         view.lineHeightMultiplier = 1.35
@@ -53,6 +73,7 @@ struct CodeEditor: UIViewRepresentable {
         view.backgroundColor = .systemBackground
         view.keyboardDismissMode = .interactive
         view.isFindInteractionEnabled = true
+        view.characterPairs = [PythonPair(leading: "(", trailing: ")"), PythonPair(leading: "[", trailing: "]"), PythonPair(leading: "{", trailing: "}"), PythonPair(leading: "\"", trailing: "\""), PythonPair(leading: "'", trailing: "'")]
         view.editorDelegate = context.coordinator
         controller.view = view
         controller.didEdit = { [weak coordinator = context.coordinator, weak view] in
@@ -71,6 +92,13 @@ struct CodeEditor: UIViewRepresentable {
             view.scrollRangeToVisible(selection)
         }
         view.isEditable = editable
+        let key = "\(size)|\(font)|\(themeName)|\(foreground)|\(background)"
+        if context.coordinator.appearanceKey != key {
+            let theme = PythonTheme(size: size, fontName: font, mode: themeName, foreground: foreground, background: background)
+            view.theme = theme
+            view.backgroundColor = theme.editorBackground
+            context.coordinator.appearanceKey = key
+        }
         if let line = errorLine, let range = EditorText.lineRange(in: text, line: line) {
             view.highlightedRanges = [HighlightedRange(range: range, color: UIColor.systemRed.withAlphaComponent(0.12))]
         } else { view.highlightedRanges = [] }
@@ -80,6 +108,7 @@ struct CodeEditor: UIViewRepresentable {
     final class Coordinator: NSObject, TextViewDelegate {
         var parent: CodeEditor
         var updating = false
+        var appearanceKey = ""
         init(_ parent: CodeEditor) { self.parent = parent }
         func textViewDidChange(_ textView: TextView) {
             guard !updating else { return }
@@ -97,9 +126,10 @@ struct CodeEditor: UIViewRepresentable {
 }
 
 private final class PythonTheme: Theme {
-    let font = UIFont.monospacedSystemFont(ofSize: 16, weight: .regular)
-    let textColor = UIColor.label
-    let gutterBackgroundColor = UIColor.secondarySystemBackground
+    let font: UIFont
+    let textColor: UIColor
+    let editorBackground: UIColor
+    let gutterBackgroundColor: UIColor
     let gutterHairlineColor = UIColor.separator
     let lineNumberColor = UIColor.secondaryLabel
     let lineNumberFont = UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
@@ -110,11 +140,22 @@ private final class PythonTheme: Theme {
     let pageGuideHairlineColor = UIColor.separator
     let pageGuideBackgroundColor = UIColor.clear
     let markedTextBackgroundColor = UIColor.systemBlue.withAlphaComponent(0.15)
+    init(size: Double, fontName: String, mode: String, foreground: String, background: String) {
+        font = UIFont(name: fontName, size: CGFloat(size)) ?? UIFont.monospacedSystemFont(ofSize: CGFloat(size), weight: .regular)
+        if mode == "custom" {
+            textColor = UIColor(hex: foreground) ?? .label; editorBackground = UIColor(hex: background) ?? .systemBackground
+        } else if mode == "dark" {
+            textColor = UIColor(hex: "#DDE3ED")!; editorBackground = UIColor(hex: "#20232B")!
+        } else if mode == "light" {
+            textColor = .black; editorBackground = .white
+        } else { textColor = .label; editorBackground = .systemBackground }
+        gutterBackgroundColor = editorBackground
+    }
     func textColor(for highlightName: String) -> UIColor? {
         switch highlightName.components(separatedBy: ".").first {
         case "keyword": return .systemPurple
         case "string": return .systemGreen
-        case "comment": return .secondaryLabel
+        case "comment": return .systemGray
         case "number", "constant": return .systemOrange
         case "function": return .systemBlue
         case "type", "constructor": return .systemTeal

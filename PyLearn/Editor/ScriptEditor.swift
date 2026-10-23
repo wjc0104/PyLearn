@@ -6,167 +6,183 @@ struct ScriptEditor: View {
     @Environment(\.dismiss) private var dismiss
     let documentID: UUID
     var exercise: Exercise? = nil
+    var bankExercise: BankExercise? = nil
     @StateObject private var editor = EditorController()
     @State private var text = ""
     @State private var selection = NSRange(location: 0, length: 0)
     @State private var syntaxProblem: PythonProblem?
     @State private var completions: [String] = []
+    @State private var signature = ""
     @State private var analysisTask: Task<Void, Never>?
     @State private var input = ""
-    @State private var exportPresented = false
-    @State private var consolePresented = true
+    @State private var exporting = false
+    @State private var expanded = true
     @State private var loaded = false
-    @State private var grade: String?
+    @State private var grade = ""
+    @State private var gradeReport = ""
     @State private var fileError: String?
-    private var currentProblem: PythonProblem? {
+    private var document: ScriptDocument? { store.document(documentID) }
+    private var directory: String? { document?.projectID.map { store.projectRoot($0).path } }
+    private var path: String? { if let id = document?.projectID, let path = document?.relativePath { return try? store.projectFile(id, path: path).path }; return nil }
+    private var isPython: Bool { document?.name.lowercased().hasSuffix(".py") ?? true }
+    private var problem: PythonProblem? {
         if session.documentID == documentID && session.executedSource == text { return session.problem ?? syntaxProblem }
         return syntaxProblem
     }
-
     var body: some View {
         VStack(spacing: 0) {
-            if let exercise {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(exercise.prompt).font(.subheadline)
-                    if let grade { Text(grade).font(.caption).foregroundColor(.teal) }
-                }.frame(maxWidth: .infinity, alignment: .leading).padding(12).background(Color.teal.opacity(0.08))
+            if let prompt = bankExercise?.prompt ?? exercise?.prompt {
+                DisclosureGroup("练习任务与提示") {
+                    ScrollView { Text(prompt + "\n\n" + (bankExercise?.hint ?? exercise?.hint ?? "")).font(.subheadline).textSelection(.enabled) }.frame(maxHeight: 160)
+                }.padding(10)
             }
-            CodeEditor(text: $text, selection: $selection, controller: editor, editable: !session.running, errorLine: currentProblem?.line)
-                .frame(minHeight: 160)
-            if !completions.isEmpty && !session.running {
+            if !grade.isEmpty { Text(grade).font(.caption).foregroundColor(.teal).padding(5) }
+            CodeEditor(text: $text, selection: $selection, controller: editor, editable: !session.busy, errorLine: isPython ? problem?.line : nil).frame(minHeight: 120)
+            if !signature.isEmpty { Text(signature).font(.system(.caption2, design: .monospaced)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8) }
+            if !completions.isEmpty && !session.busy {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(completions, id: \.self) { completion in
-                            Button(completion) {
-                                editor.replace(EditorText.prefixRange(in: text, selection: selection), with: completion)
-                            }.font(.system(.caption, design: .monospaced)).buttonStyle(.bordered)
-                        }
-                    }.padding(.horizontal, 10)
-                }.frame(height: 42)
+                    HStack { ForEach(completions, id: \.self) { item in Button(item) { accept(item) }.font(.system(.caption, design: .monospaced)).buttonStyle(.bordered) } }.padding(.horizontal, 8)
+                }.frame(height: 40)
             }
             symbolBar
-            if let problem = currentProblem {
-                Button {
-                    if let line = problem.line, let range = EditorText.lineRange(in: text, line: line) { selection = range }
-                } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(problem.line.map { "第 \($0) 行 · " } ?? "")\(problem.kind)").font(.caption.bold())
-                        Text(problem.hint).font(.caption)
-                        Text(problem.message).font(.system(.caption2, design: .monospaced)).lineLimit(3)
-                    }.frame(maxWidth: .infinity, alignment: .leading).padding(10)
-                }.foregroundColor(.red).background(Color.red.opacity(0.07))
+            if let problem, isPython { problemView(problem) }
+            console
+            if let error = store.error { Text(error).font(.caption2).foregroundColor(.red).padding(4) }
+        }.navigationTitle(document?.name ?? "Python").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) { Button("完成") { dismiss() } }
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button("复制全部代码") { UIPasteboard.general.string = text }
+                        Button("全选") { editor.selectAll() }
+                        Button("粘贴") { if let value = UIPasteboard.general.string { editor.insert(value) } }.disabled(session.busy)
+                        Button("导出文件") { exporting = true }
+                        if bankExercise != nil { Button("运行测试") { checkExercise() }.disabled(session.busy) }
+                    } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("编辑器选项")
+                    if bankExercise != nil { Button("判题") { checkExercise() }.disabled(session.busy) }
+                    Button { run() } label: { Image(systemName: session.running ? "stop.fill" : "play.fill") }
+                        .accessibilityLabel(session.running ? "停止运行" : "运行脚本").disabled(!isPython || session.working)
+                }
             }
-            if consolePresented { console }
-            if let error = store.error { Text(error).font(.caption2).foregroundColor(.red).padding(5) }
-        }
-        .navigationTitle(store.document(documentID)?.name ?? "Python")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) { Button("完成") { dismiss() } }
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Menu {
-                    Button { exportPresented = true } label: { Label("导出 .py", systemImage: "square.and.arrow.up") }
-                    Button { consolePresented.toggle() } label: { Label(consolePresented ? "隐藏控制台" : "显示控制台", systemImage: "terminal") }
-                    if let exercise { Text("提示：" + exercise.hint) }
-                } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("编辑器选项")
-                Button {
-                    if session.running { session.stop() }
-                    else { editor.dismissKeyboard(); consolePresented = true; grade = nil; session.run(source: text, documentID: documentID) }
-                } label: { Image(systemName: session.running ? "stop.fill" : "play.fill") }
-                    .accessibilityLabel(session.running ? "停止运行" : "运行脚本")
+            .fileExporter(isPresented: $exporting, document: PythonFile(source: text), contentType: isPython ? .pythonSource : .plainText, defaultFilename: document?.name ?? "script.py") { result in if case .failure(let error) = result { fileError = error.localizedDescription } }
+            .alert("文件提示", isPresented: Binding(get: { fileError != nil }, set: { if !$0 { fileError = nil } })) { Button("知道了") { fileError = nil } } message: { Text(fileError ?? "") }
+            .onAppear {
+                text = document?.source ?? ""; loaded = true
+                editor.acceptCompletion = { if let first = completions.first { accept(first) } else { editor.insert("    ") } }
+                analyze()
             }
-        }
-        .fileExporter(isPresented: $exportPresented, document: PythonFile(source: text), contentType: .pythonSource,
-                      defaultFilename: store.document(documentID)?.name ?? "script.py") { result in
-            if case .failure(let error) = result { fileError = error.localizedDescription }
-        }
-        .alert("导出失败", isPresented: Binding(get: { fileError != nil }, set: { if !$0 { fileError = nil } })) {
-            Button("知道了") { fileError = nil }
-        } message: { Text(fileError ?? "") }
-        .onAppear { text = store.document(documentID)?.source ?? ""; loaded = true; analyze() }
-        .onChange(of: text) { source in
-            guard loaded else { return }
-            store.update(documentID, source: source)
-            grade = nil
-            analyze()
-        }
-        .onChange(of: selection) { _ in analyze() }
-        .onChange(of: session.sequence) { _ in
-            guard let exercise, session.documentID == documentID, session.executedSource == text else { return }
-            if session.resultStatus == "success" {
-                if session.output.trimmingCharacters(in: .whitespacesAndNewlines) == exercise.expected.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    store.markComplete(exercise.id)
-                    grade = "完成了！输出与预期一致。"
-                } else { grade = "已经运行，输出还不一致，再检查一下。" }
+            .onChange(of: text) { _ in guard loaded else { return }; store.update(documentID, source: text); grade = ""; gradeReport = ""; analyze() }
+            .onChange(of: selection) { _ in analyze() }
+            .onChange(of: session.prompt) { value in if value != nil { expanded = true } }
+            .onChange(of: session.sequence) { _ in
+                if let id = document?.projectID, session.documentID == documentID {
+                    store.refreshProject(id)
+                    text = document?.source ?? text
+                }
+                if let exercise, session.documentID == documentID, session.executedSource == text, session.resultStatus == "success" {
+                    if session.output.trimmingCharacters(in: .whitespacesAndNewlines) == exercise.expected.trimmingCharacters(in: .whitespacesAndNewlines) {
+                        store.markComplete(exercise.id); grade = "完成了！输出与预期一致。"
+                    } else { grade = "输出还不一致，请检查代码。" }
+                }
+                analyze()
             }
-            analyze()
-        }
-        .onDisappear {
-            analysisTask?.cancel()
-            store.flush()
-            if session.documentID == documentID && session.running { session.stop() }
-        }
+            .onDisappear { analysisTask?.cancel(); editor.acceptCompletion = nil; store.flush(); if session.documentID == documentID && session.running { session.stop() } }
     }
-
+    private func problemView(_ problem: PythonProblem) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text("\(problem.line.map { "第 \($0) 行 · " } ?? "")\(problem.kind)").font(.caption.bold())
+                Spacer()
+                Button("定位") { if let line = problem.line, let range = EditorText.lineRange(in: text, line: line) { selection = range } }
+                Button("复制错误") { UIPasteboard.general.string = problem.hint + "\n" + (problem.traceback ?? problem.message) }.accessibilityIdentifier("copyError")
+            }
+            Text(problem.hint).font(.caption).textSelection(.enabled)
+            DisclosureGroup("英文原文与详细信息") {
+                ScrollView { Text(problem.traceback ?? problem.message).font(.system(.caption2, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 100)
+            }.font(.caption)
+        }.padding(10).foregroundColor(.red).background(Color.red.opacity(0.07))
+    }
     private var symbolBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Button { editor.undo() } label: { Image(systemName: "arrow.uturn.backward") }.accessibilityLabel("撤销")
                 Button { editor.redo() } label: { Image(systemName: "arrow.uturn.forward") }.accessibilityLabel("重做")
-                ForEach(["⇥", "(", ")", "[", "]", ":", "\"", "'", "=", "_", "#"], id: \.self) { symbol in
-                    Button(symbol) { editor.insert(symbol == "⇥" ? "    " : symbol) }
-                        .font(.system(.body, design: .monospaced)).frame(minWidth: 30, minHeight: 36)
+                Button("补全 ⇥") { if let first = completions.first { accept(first) } else { editor.insert("    ") } }
+                ForEach(["⇥","(",")","[","]","{","}",":",",",".","\"","'","=","+","-","*","/","%","**","//","==","!=","<",">","<=",">=","_","#","\\","@","&","|","~",";"], id: \.self) { symbol in
+                    Button(symbol) { editor.insert(symbol == "⇥" ? "    " : symbol) }.font(.system(.body, design: .monospaced)).frame(minWidth: 30, minHeight: 36)
+                }
+                Menu("模板") {
+                    Button("条件判断") { editor.insert("if 条件:\n    pass\nelse:\n    pass\n") }
+                    Button("for 循环") { editor.insert("for item in range(5):\n    print(item)\n") }
+                    Button("定义函数") { editor.insert("def function(value):\n    return value\n") }
+                    Button("异常处理") { editor.insert("try:\n    pass\nexcept Exception as error:\n    print(error)\n") }
+                    Button("读取文件") { editor.insert("with open('data.txt', encoding='utf-8') as file:\n    print(file.read())\n") }
                 }
                 Button { editor.dismissKeyboard() } label: { Image(systemName: "keyboard.chevron.compact.down") }.accessibilityLabel("收起键盘")
-            }.buttonStyle(.borderless).padding(.horizontal, 10)
-        }.frame(height: 40).background(Color(uiColor: .secondarySystemBackground)).disabled(session.running)
+            }.buttonStyle(.borderless).padding(.horizontal, 8)
+        }.frame(height: 42).background(Color(uiColor: .secondarySystemBackground)).disabled(session.busy)
     }
-
     private var console: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack {
                 Label("控制台", systemImage: "terminal").font(.caption.bold())
                 Spacer()
-                Text(session.status).font(.caption).foregroundColor(.secondary)
-                Button { UIPasteboard.general.string = session.output } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel("复制输出")
+                Text(session.working ? "处理中" : session.status).font(.caption).foregroundColor(.secondary)
+                Button { UIPasteboard.general.string = gradeReport.isEmpty ? session.output : gradeReport } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel("复制输出")
+                Button { session.clearOutput(); gradeReport = "" } label: { Image(systemName: "trash") }.disabled(session.running).accessibilityLabel("清空输出")
+                Button { expanded.toggle() } label: { Image(systemName: expanded ? "chevron.down" : "chevron.up") }.accessibilityLabel(expanded ? "收起控制台" : "展开控制台")
             }
-            ScrollViewReader { reader in
-                ScrollView {
-                    Text(session.output.isEmpty ? "运行结果会显示在这里" : session.output)
-                        .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-                        .foregroundColor(session.output.isEmpty ? .secondary : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Color.clear.frame(height: 1).id("end")
-                }.frame(maxHeight: 130)
-                    .onChange(of: session.output) { _ in reader.scrollTo("end", anchor: .bottom) }
-            }
-            if let prompt = session.prompt {
-                Text(prompt.isEmpty ? "请输入内容" : prompt).font(.caption)
-                HStack {
-                    TextField("输入后点击发送", text: $input).textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
-                        .onSubmit { sendInput() }
-                    Button("发送") { sendInput() }.buttonStyle(.borderedProminent)
+            if expanded {
+                ScrollViewReader { reader in
+                    ScrollView {
+                        Text(gradeReport.isEmpty ? (session.output.isEmpty ? "运行结果会显示在这里" : session.output) : gradeReport)
+                            .font(.system(.caption, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                        Color.clear.frame(height: 1).id("end")
+                    }.frame(maxHeight: 130).onChange(of: session.output) { _ in reader.scrollTo("end", anchor: .bottom) }
+                }
+                if let prompt = session.prompt {
+                    Text(prompt.isEmpty ? "请输入内容" : prompt).font(.caption)
+                    HStack {
+                        TextField("输入后点击发送", text: $input).textFieldStyle(.roundedBorder).autocorrectionDisabled().textInputAutocapitalization(.never).onSubmit { sendInput() }
+                        Button("发送") { sendInput() }.buttonStyle(.borderedProminent)
+                    }
                 }
             }
-        }.padding(12).background(Color(uiColor: .secondarySystemBackground))
+        }.padding(10).background(Color(uiColor: .secondarySystemBackground))
     }
-
+    private func accept(_ value: String) { editor.replace(EditorText.prefixRange(in: text, selection: selection), with: value) }
     private func sendInput() { let value = input; input = ""; session.submitInput(value) }
-
+    private func run() {
+        if session.running { session.stop(); return }
+        do { try store.flushOrThrow() } catch { fileError = "保存失败，已取消运行。请先导出代码。"; return }
+        editor.dismissKeyboard(); expanded = true; grade = ""; gradeReport = ""
+        session.run(source: text, documentID: documentID, directory: directory, path: path)
+    }
+    private func checkExercise() {
+        guard let bankExercise else { return }
+        guard !bankExercise.id.hasPrefix("ai.") || bankExercise.verified == true else { grade = "先返回题目页验证参考答案，再进行判题。"; return }
+        expanded = true; editor.dismissKeyboard()
+        let snapshot = text
+        session.perform(["action":"grade","source":snapshot,"module":bankExercise.module,"tests":bankExercise.tests]) { response in
+            gradeReport = response["report"] as? String ?? "无法判题"
+            let success = response["status"] as? String == "success"
+            grade = success ? "通过当前测试用例！" : "还有用例没有通过，展开控制台查看。"
+            if success && text == snapshot { store.markComplete(bankExercise.id) }
+        }
+    }
     private func analyze() {
         analysisTask?.cancel()
-        guard !session.running else { completions = []; return }
-        let snapshot = text
-        let cursor = selection
+        guard !session.busy, isPython else { completions = []; return }
+        let snapshot = text, cursor = selection
         let prefix = (snapshot as NSString).substring(with: EditorText.prefixRange(in: snapshot, selection: cursor))
+        let before = (snapshot as NSString).substring(to: min(cursor.location, (snapshot as NSString).length))
+        let lines = before.components(separatedBy: "\n")
         analysisTask = Task {
             do { try await Task.sleep(nanoseconds: 300_000_000) } catch { return }
             guard !Task.isCancelled else { return }
-            session.analyze(source: snapshot, prefix: prefix) { error, names in
-                guard text == snapshot && selection == cursor && !session.running else { return }
-                syntaxProblem = error
-                completions = names
+            session.analyze(source: snapshot, prefix: prefix, line: lines.count, column: lines.last?.unicodeScalars.count ?? 0, directory: directory, path: path) { error, names, help in
+                guard text == snapshot && selection == cursor && !session.busy else { return }
+                syntaxProblem = error; completions = names; signature = help
             }
         }
     }

@@ -26,20 +26,25 @@ struct ScriptDocument: Codable, Identifiable {
     var name: String
     var source: String
     var exerciseID: String?
+    var projectID: UUID?
+    var relativePath: String?
 }
 
 @MainActor
 final class LearningStore: ObservableObject {
-    @Published private(set) var documents: [ScriptDocument] = []
+    @Published var documents: [ScriptDocument] = []
     @Published private(set) var completed: Set<String> = []
+    @Published var projects: [ScriptProject] = []
     @Published var error: String?
     let lessons: [Lesson]
-    private let directory: URL
+    let directory: URL
     private var canSave = true
     private var saveTask: Task<Void, Never>?
+    private var dirtyDocuments: Set<UUID> = []
     private struct Saved: Codable {
         var documents: [ScriptDocument]
         var completed: Set<String>
+        var projects: [ScriptProject]?
     }
 
     init(directory: URL? = nil) {
@@ -58,6 +63,11 @@ final class LearningStore: ObservableObject {
                 let saved = try JSONDecoder().decode(Saved.self, from: Data(contentsOf: file))
                 documents = saved.documents
                 completed = saved.completed
+                projects = saved.projects ?? []
+                if saved.projects == nil {
+                    let backup = self.directory.appendingPathComponent("library-v1-backup.json")
+                    if !FileManager.default.fileExists(atPath: backup.path) { try FileManager.default.copyItem(at: file, to: backup) }
+                }
             } else {
                 documents = [ScriptDocument(name: "你好，Python.py", source: "# 从这里开始你的 Python 学习\nname = input(\"你叫什么名字？\")\nprint(\"你好，\" + name)\n")]
                 try persist()
@@ -74,9 +84,10 @@ final class LearningStore: ObservableObject {
     func create(name: String = "新脚本.py", source: String = "", exerciseID: String? = nil) throws -> ScriptDocument {
         var unique = URL(fileURLWithPath: name).lastPathComponent
         let base = URL(fileURLWithPath: unique).deletingPathExtension().lastPathComponent
+        let ext = URL(fileURLWithPath: unique).pathExtension
         var number = 2
         while documents.contains(where: { $0.name == unique }) {
-            unique = "\(base) \(number).py"
+            unique = "\(base) \(number).\(ext.isEmpty ? "py" : ext)"
             number += 1
         }
         let document = ScriptDocument(name: unique, source: source, exerciseID: exerciseID)
@@ -92,7 +103,7 @@ final class LearningStore: ObservableObject {
     }
 
     func importScript(name: String, data: Data) throws -> ScriptDocument {
-        guard URL(fileURLWithPath: name).pathExtension.lowercased() == "py" else { throw failure("请选择 .py 文件。") }
+        guard ["py", "txt", "json", "csv", "md", "toml", "yaml", "yml", "ini"].contains(URL(fileURLWithPath: name).pathExtension.lowercased()) else { throw failure("请选择 Python 或常见文本文件；二进制资源请通过文件夹导入。") }
         guard data.count <= 524288 else { throw failure("文件超过 512 KiB，首版暂不支持。") }
         guard var source = String(data: data, encoding: .utf8) else { throw failure("文件不是 UTF-8 编码，请转换编码后重新导入。") }
         if source.first == "\u{feff}" { source.removeFirst() }
@@ -111,6 +122,7 @@ final class LearningStore: ObservableObject {
     func update(_ id: UUID, source: String) {
         guard let index = documents.firstIndex(where: { $0.id == id }) else { return }
         documents[index].source = source
+        dirtyDocuments.insert(id)
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: 350_000_000) } catch { return }
@@ -130,15 +142,54 @@ final class LearningStore: ObservableObject {
     }
 
     func flush() {
+        do { try flushOrThrow() } catch { self.error = "保存失败，请先导出代码：\(error.localizedDescription)" }
+    }
+
+    func flushOrThrow() throws {
         saveTask?.cancel()
-        do { try persist() } catch { self.error = "保存失败，请先导出代码：\(error.localizedDescription)" }
+        try persist()
     }
 
-    private func persist() throws {
+    func persist() throws {
         guard canSave else { throw failure("学习记录读取失败，暂时不能覆盖原文件。") }
-        let data = try JSONEncoder().encode(Saved(documents: documents, completed: completed))
+        for document in documents where dirtyDocuments.contains(document.id) && projects.contains(where: { $0.id == document.projectID }) {
+            if let projectID = document.projectID, let path = document.relativePath {
+                let file = try projectFile(projectID, path: path)
+                try Data(document.source.utf8).write(to: file, options: .atomic)
+            }
+        }
+        let data = try JSONEncoder().encode(Saved(documents: documents, completed: completed, projects: projects))
         try data.write(to: directory.appendingPathComponent("library.json"), options: .atomic)
+        dirtyDocuments.removeAll()
     }
 
-    private func failure(_ message: String) -> NSError { NSError(domain: "PyLearn", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
+    func failure(_ message: String) -> NSError { NSError(domain: "PyLearn", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
+
+    func openProjectFile(_ project: ScriptProject, path: String) throws -> ScriptDocument {
+        let url = try projectFile(project.id, path: path)
+        let data = try Data(contentsOf: url)
+        guard data.count <= 524288, let text = String(data: data, encoding: .utf8) else { throw failure("该文件为二进制、非 UTF-8 文本或超过 512 KiB。文件已保留，可由脚本读取。") }
+        if let index = documents.firstIndex(where: { $0.projectID == project.id && $0.relativePath == path }) {
+            documents[index].source = text
+            return documents[index]
+        }
+        let document = ScriptDocument(name: url.lastPathComponent, source: text, projectID: project.id, relativePath: path)
+        documents.append(document)
+        try persist()
+        return document
+    }
+
+    func refreshProject(_ id: UUID) {
+        documents.removeAll { document in
+            if dirtyDocuments.contains(document.id) { return false }
+            guard document.projectID == id, let path = document.relativePath else { return false }
+            guard let url = try? projectFile(id, path: path) else { return true }
+            return !FileManager.default.fileExists(atPath: url.path)
+        }
+        for index in documents.indices where documents[index].projectID == id {
+            if dirtyDocuments.contains(documents[index].id) { continue }
+            if let path = documents[index].relativePath, let url = try? projectFile(id, path: path),
+               let source = try? String(contentsOf: url, encoding: .utf8) { documents[index].source = source }
+        }
+    }
 }

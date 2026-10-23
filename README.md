@@ -1,78 +1,56 @@
 # PyLearn · Python 学习
+面向 **iOS 16.3 及以上 iPhone / iPad** 的原生 Python 学习 App，使用 Runestone 与设备本地 CPython。IPA 通过巨魔商店（TrollStore）安装。
 
-面向 **iOS 16.3 及以上 iPhone / iPad** 的原生 Python 学习 App，采用 Runestone 编辑器和 CPython 解释器，在设备上离线学习、编辑并运行 Python 脚本。IPA 面向已安装巨魔商店（TrollStore）的设备。
+**本项目由 OpenAI Codex 辅助开发与编辑**，包括架构、代码、审查和测试。
 
-**本项目使用 OpenAI Codex 辅助开发与编辑**，包括架构梳理、代码编写、修改、审查与测试。
+## 0.2 功能
+- 8 个中文入门章节、16 道入门题，另有 **126 道可更新题库练习**；按中文知识点、关键词和难度检索，包含中文任务说明、原题、参考答案和函数测试。下载后离线可用。
+- AI 出题、完整题目翻译：预置 OpenAI、DeepSeek、通义、智谱、硅基流动、Moonshot、Gemini、Claude、Ollama、自定义服务；支持兼容接口、Responses、Claude 和 Gemini 原生格式。可保存多个配置、读取模型列表；密钥保存在 Keychain。
+- Runestone 编辑器，语法检查、错误定位、中文提示、复制代码和完整错误信息；更多符号、配对和代码模板。
+- Jedi 离线静态补全，包含变量、模块成员和函数参数提示；点选候选或外接键盘 Tab 接受。最新语法以 CPython 检查结果为准，补全不等于完整 PyCharm。
+- **CPython 3.15.1** 本地执行，支持 input、停止、控制台就近收起/展开、复制和清空。
+- 导入文件夹、多个脚本及文本文件；保留目录和资源，文件树与入口选择，支持项目模块导入和相对路径读取数据。
+- Git 初始化、HTTPS 克隆、状态/差异/历史、提交、分支及快进拉取/推送。由 Dulwich 运行，不需要桌面 git 命令。凭据不进入项目或远程 URL。
+- 字号、字体、导入 TTF/OTF、浅色/深色/自定义颜色。脚本和项目统一 **长按菜单**，删除需确认。
+- 旧版脚本和进度保留，首次迁移备份旧库。无需 App 账号，无广告。
 
-## 首版功能
+## 安装与测试
+**正式版本从 [GitHub Releases](https://github.com/wjc0104/PyLearn/releases) 下载。**
+正式发布与测试构建分开；未发布的版本不能视为正式发行版。
 
-- 8 个中文入门章节、16 道练习，提供可运行示例、提示和参考答案。
-- Runestone 原生代码编辑器，支持 Python 语法高亮、行号、缩进、撤销、重做和编程符号栏。
-- 语法检查、错误行高亮和常见错误的中文解释。
-- 关键字、内置名称和当前代码名称的基础补全；分析时不会执行用户代码。
-- 本地单文件运行，支持控制台输出、交互式 `input()` 输入及协作停止。
-- 从「文件」App 导入 UTF-8 编码的 `.py` 文件，最大 512 KiB；导入时保存副本，不修改原文件。
-- 代码自动保存、`.py` 导出，以及带确认的删除操作。
-- 脚本和学习进度保存在设备本地，无需登录，无广告、统计服务或运行服务器。
+[Actions 工作流](https://github.com/wjc0104/PyLearn/actions/workflows/build-ipa.yml)用于开发测试。成功记录的 Artifacts 中下载 PyLearn-iOS16.3-TrollStore，解压取得 IPA，再用巨魔商店安装。测试产物保留 14 天，包含 IPA、SHA256、包检查结果及启用模拟器测试后的截图。
 
-## 下载与安装
+维护者准备好后可手动运行“发布发行版”，默认预发布；常规推送不会自动发行。
 
-**正式版从 [GitHub Releases](https://github.com/wjc0104/PyLearn/releases) 下载。**选择对应版本，在附件中下载 `.ipa`，再通过巨魔商店安装。
+## 使用说明
+题库首屏自带离线内容；点击右上角刷新或下拉可同步线上目录。搜索针对已收录题库，**不是全网网站爬虫**；没有现成题时，可明确点击 AI 出题补充。AI 需要自配服务、密钥和模型，费用由相应服务商收取，不会因搜索自动计费。完整英文题面可展开，也可以使用自己的服务翻译。
 
-目前尚未发布首个正式发行版，正在验证首版功能。正式发行版会附带 IPA 和 SHA256 校验文件，不以 Actions 临时产物代替。
+AI 生成题标记为尚未验证，进入题目可运行参考答案校验；通过当前用例不代表覆盖所有情况。只将本次关键词或所选题面发给配置的服务，不自动上传项目。云服务必须 HTTPS；局域网 HTTP 需显式开启，手机与服务器需网络互通，示例 IP 必须改成自己的设备地址。
 
-## 开发与测试版本
+文件夹导入保存本机副本，最多 1000 个文件 / 50 MiB，忽略缓存和虚拟环境，拒绝符号链接。文本编辑支持 UTF-8、最大 512 KiB；二进制资源保留供脚本读取。长按 .py 文件可设置运行入口。项目删除保留在 App 数据目录 deleted-projects 中。
 
-[Actions 工作流](https://github.com/wjc0104/PyLearn/actions/workflows/build-ipa.yml)用于持续构建和开发测试，方便维护者在正式发行前安装验证。
-
-1. 选择一次成功的 **Build IPA** 运行记录。
-2. 在 **Artifacts** 中下载 **PyLearn-iOS16.3-TrollStore**。
-3. 解压 ZIP 后取得测试 IPA，使用巨魔商店安装。
-
-测试产物保留 14 天；包含包检查记录、SHA256 校验文件，以及启用模拟器测试时的结果和截图。测试产物不代表正式发行版。
+Git 仅提供基础流程：提交前检查差异，拉取只允许快进，分歧时保留本地代码。未接入 SSH、子模块、LFS、交互式冲突合并或强制推送。
 
 ## 构建与验证
-
-工作流会运行 Python 回归测试，构建 arm64 安装包，检查包结构及最低系统版本。推送应用变更时执行原生和模拟器界面测试；手动测试构建可以选择是否执行耗时较长的模拟器测试。构建不需要 Apple 开发者签名证书；巨魔商店会在安装时处理签名。
-
-本地构建需要 **macOS、完整 Xcode、XcodeGen 和 Python 3.12 及以上版本**：
-
+本地原生构建需 macOS、Xcode、XcodeGen、Python 3.15；Windows 可运行便携回归和 IPA 检查。
 ```sh
+python3 scripts/prepare_python_packages.py
 python3 -m unittest discover -s tests -v
 bash scripts/build_ipa.sh
 ```
+构建输出 dist/PyLearn-0.2.0.ipa、verification.json、SHA256SUMS.txt。依赖固定版本并校验 SHA256；IPA 检查 arm64、最低系统与所需资源。
 
-生成文件：
+题库更新工具 scripts/sync_exercises.py 从固定上游版本生成目录，启用练习测试并逐题校验参考答案；不通过或不适合设备限制的题目不收录。中文任务说明是辅助摘要，详细约定以完整原题和测试为准。保留来源、作者及 MIT 许可；不把整个上游直接当作已适配。
 
-- `dist/PyLearn-0.1.0.ipa`：安装包。
-- `dist/verification.json`：包大小、版本、最低系统版本和二进制检查结果。
-- `dist/SHA256SUMS.txt`：SHA256 校验值。
+## 运行范围
+提供标准库及 App 自用的补全/Git 组件，不提供任意 pip 安装。常规脚本默认 10 秒执行限制（不计等待输入），输出最多 20,000 字符。协作停止无法安全强制终止任意阻塞的 C 调用。
 
-Windows 可以运行 Python 测试和 IPA 检查器，原生编译与模拟器测试需要 macOS。**编译或模拟器测试通过，不代表已经在物理 iOS 16.3 设备上验证安装与运行。**
+脚本、测试和 Git 组件处于 App 进程中，不是独立安全沙箱。只运行你信任的代码。不需要 JIT、私有权限或解除系统沙箱。
+模拟器和编译验证不能代替物理 iOS 16.3 设备的安装、第三方 API 或真实远程 Git 验证。
 
-## 发行流程
+## 架构与许可
+SwiftUI / Runestone / Tree-sitter / CPython 3.15.1 / Objective-C 桥接；Jedi + Parso 静态补全；Dulwich Git；URLSession 多协议 AI。
 
-维护者确认版本准备好后，可以手动运行 **发布发行版** 工作流。输入与工程一致的版本号；默认创建预发布版本，准备正式发行时取消“预发布”选项。工作流会重新构建、执行原生测试并验证 IPA，通过后创建 GitHub Release，上传安装包和校验文件。
+[新版设计](docs/superpowers/specs/2026-10-23-pylearn-v2-design.md) · [计划](docs/superpowers/plans/2026-10-23-pylearn-v2.md) · [第三方声明](THIRD_PARTY_NOTICES.md)
 
-普通代码推送和测试构建不会自动发布发行版。
-
-## 首版范围与运行限制
-
-首版提供 Python 标准库，受 CPython 在 iOS 上的平台限制影响。暂不包含任意第三方包安装、NumPy / pandas、AI 助手、断点调试器或多文件项目。
-
-每次运行使用新的全局变量字典，默认运行时间限制为 10 秒，不计算等待用户输入的时间；控制台最多输出 20,000 个字符。普通 Python 循环、输入等待和封装后的 `time.sleep` 支持协作停止。任意阻塞的 C 扩展调用无法在 App 进程内安全地强制终止，某些情况可能需要重新打开 App。
-
-Python 解释器不提供独立的安全沙箱，请只运行可信脚本。本项目不申请私有权限、JIT 或解除系统沙箱限制。
-
-脚本以原子写入方式保存在 `Documents/PyLearn/library.json`。如果原有记录无法读取，App 会暂停写入，避免覆盖原文件。代码补全属于基础名称补全，不是完整语言服务器，也不会生成 AI 代码。
-
-## 技术架构与许可
-
-- **SwiftUI**：课程、练习、文件列表和控制台界面。
-- **Runestone + Tree-sitter**：原生编辑与 Python 语法高亮。
-- **CPython 3.13 + Python Apple Support**：设备本地 Python 运行环境。
-- **Objective-C 桥接层**：串行执行、输入输出和取消控制。
-
-详细内容见[架构设计](docs/superpowers/specs/2026-10-23-pylearn-design.md)与[实施计划](docs/superpowers/plans/2026-10-23-pylearn-mvp.md)。
-
-第三方组件的来源和许可见[第三方声明](THIRD_PARTY_NOTICES.md)，完整许可文本随 App 一起打包。仓库已由作者授权公开，用于 GitHub 托管构建；原创应用代码的再使用许可尚未选定，第三方组件仍遵循各自的许可证。
+原创应用代码的再使用许可尚未选定。第三方组件保持各自许可，许可文本随包分发。

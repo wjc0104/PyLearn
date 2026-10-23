@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct PyLearnApp: App {
+    init() { FontRegistry.restore() }
     @StateObject private var store = LearningStore()
     @StateObject private var session = PythonSession()
     @Environment(\.scenePhase) private var phase

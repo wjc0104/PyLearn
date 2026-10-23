@@ -27,11 +27,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.15"
       - name: Install XcodeGen
         run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
       - name: Portable regression tests
-        run: python3 -m unittest discover -s tests -v
+        run: |
+          python3 scripts/prepare_python_packages.py
+          python3 -m unittest discover -s tests -v
       - name: Build and verify IPA
         run: bash scripts/build_ipa.sh
       - name: Native tests on iPhone simulator

@@ -11,8 +11,8 @@ settings:
     TARGETED_DEVICE_FAMILY: "1,2"
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     CODE_SIGNING_ALLOWED: NO
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: "2"
     GENERATE_INFOPLIST_FILE: YES
 packages:
   Runestone:
@@ -25,6 +25,12 @@ targets:
   PyLearn:
     type: application
     platform: iOS
+    info:
+      path: .build/PyLearn-Info.plist
+      properties:
+        NSLocalNetworkUsageDescription: 连接你配置的局域网 AI 服务。
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
     sources:
       - path: PyLearn
         excludes: [Resources]
