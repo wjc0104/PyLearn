@@ -149,7 +149,7 @@ struct BankSearchView: View {
             Button { choosingModel = true } label: {
                 VStack(alignment: .leading, spacing: 3) {
                     Label("切换 / 测试 AI 模型", systemImage: "arrow.triangle.2.circlepath")
-                    Text(profiles.active.map { $0.name + " · " + ($0.model.isEmpty ? "未选择模型" : $0.model) } ?? "尚未配置，点此添加服务")
+                    Text(profiles.active.map { $0.name + " · " + ($0.model.isEmpty ? "未选择模型" : $0.model) } ?? "点此选择、测试模型或添加服务")
                         .font(.caption).foregroundColor(.secondary)
                 }
             }.disabled(generating).accessibilityLabel("切换 / 测试 AI 模型")

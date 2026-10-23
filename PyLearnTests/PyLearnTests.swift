@@ -27,6 +27,8 @@ final class PyLearnTests: XCTestCase {
         cancelled.cancel()
         do { try await cancelled.value; XCTFail("Cancelled model switch was saved") } catch {}
         XCTAssertEqual(profiles.active?.model, "working")
+        profiles.remove(candidate.id)
+        XCTAssertNil(profiles.active, "Deleting the active profile must not silently select an untested model")
     }
 
     @MainActor

@@ -34,7 +34,7 @@ struct AIProfile: Codable, Identifiable {
         if let data = defaults.data(forKey: "ai.profiles"), let value = try? JSONDecoder().decode([AIProfile].self, from: data) { items = value }
         selected = defaults.string(forKey: "ai.selected") ?? ""
     }
-    var active: AIProfile? { items.first { $0.id.uuidString == selected } ?? items.first }
+    var active: AIProfile? { items.first { $0.id.uuidString == selected } }
     private func save(_ profile: AIProfile, key: String) throws {
         try SecretStore.save(key, account: "ai." + profile.id.uuidString)
         if let index = items.firstIndex(where: { $0.id == profile.id }) { items[index] = profile } else { items.append(profile) }
@@ -59,7 +59,7 @@ struct AIProfile: Codable, Identifiable {
     func remove(_ id: UUID) {
         items.removeAll { $0.id == id }
         try? SecretStore.save("", account: "ai." + id.uuidString)
-        if selected == id.uuidString { selected = items.first?.id.uuidString ?? "" }
+        if selected == id.uuidString { selected = "" }
         try? persist()
     }
 }
