@@ -248,7 +248,7 @@ struct ProjectView: View {
                 deletingFile = nil
             }
             Button("取消", role: .cancel) { deletingFile = nil }
-        } message: { Text("文件夹中的内容也会一起删除。本机保留恢复副本；Git 仓库中的删除需要提交并推送后才会同步到远端。") }
+        } message: { _ in Text("文件夹中的内容也会一起删除。本机保留恢复副本；Git 仓库中的删除需要提交并推送后才会同步到远端。") }
         .sheet(item: $selected, onDismiss: refresh) { document in NavigationStack { ScriptEditor(documentID: document.id) } }
         .sheet(isPresented: $addingScript, onDismiss: refresh) { NavigationStack { AddScriptToProjectView(projectID: projectID, folder: folder) } }
         .alert("项目提示", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("知道了") { store.error = nil } } message: { Text(store.error ?? "") }
