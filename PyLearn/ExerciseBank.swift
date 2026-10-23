@@ -120,40 +120,66 @@ struct BankSearchView: View {
     }
     var body: some View {
         List {
-            Section {
-                Text("\(bank.exercises.count) 道在线题库练习 · 下载后离线使用").font(.subheadline)
-                Picker("难度", selection: $level) { Text("全部").tag(0); Text("入门").tag(1); Text("进阶").tag(2) }.pickerStyle(.segmented)
-                NavigationLink("原有入门章节练习") { LegacyExercisesView() }
-                if !bank.message.isEmpty { Text(bank.message).font(.caption).foregroundColor(.secondary) }
+            introduction
+            generationSection
+            questions
+        }
+        .searchable(text: $query, prompt: "搜索列表、循环、文件、函数…")
+        .navigationTitle("编程练习")
+        .toolbar {
+            Button { Task { await bank.refresh() } } label: { Image(systemName: "arrow.clockwise") }
+                .disabled(bank.updating).accessibilityLabel("更新在线题库")
+        }
+        .refreshable { await bank.refresh() }
+        .sheet(item: $generated) { item in NavigationStack { BankExerciseDetail(exercise: item) } }
+        .alert("AI 提示", isPresented: Binding(get: { !error.isEmpty }, set: { if !$0 { error = "" } })) {
+            Button("知道了") { error = "" }
+        } message: { Text(error) }
+    }
+    private var introduction: some View {
+        Section {
+            Text("\(bank.exercises.count) 道在线题库练习 · 下载后离线使用").font(.subheadline)
+            Picker("难度", selection: $level) {
+                Text("全部").tag(0)
+                Text("入门").tag(1)
+                Text("进阶").tag(2)
+            }.pickerStyle(.segmented)
+            NavigationLink("原有入门章节练习") { LegacyExercisesView() }
+            if !bank.message.isEmpty { Text(bank.message).font(.caption).foregroundColor(.secondary) }
+        }
+    }
+    @ViewBuilder private var generationSection: some View {
+        if !query.isEmpty {
+            Section("按关键词出题") {
+                if let profile = profiles.active {
+                    Button(generating ? "生成中…" : "用 \(profile.name) 生成“\(query)”练习") { generate(profile) }
+                        .disabled(generating)
+                    Text("此操作调用你配置的服务，可能产生费用；生成后需验证参考答案。").font(.caption).foregroundColor(.secondary)
+                } else { Text("可在设置中添加 AI 服务，按任意关键词出题。").font(.caption) }
             }
-            if !query.isEmpty {
-                Section("按关键词出题") {
-                    if let profile = profiles.active {
-                        Button(generating ? "生成中…" : "用 \(profile.name) 生成“\(query)”练习") {
-                            generating = true
-                            Task { do { generated = try await bank.generate(topic: query, profile: profile) } catch { error = error.localizedDescription }; generating = false }
-                        }.disabled(generating)
-                        Text("此操作调用你配置的服务，可能产生费用；生成后需验证参考答案。").font(.caption).foregroundColor(.secondary)
-                    } else { Text("可在设置中添加 AI 服务，按任意关键词出题。").font(.caption) }
-                }
+        }
+    }
+    private var questions: some View {
+        Section("题目 · \(results.count)") {
+            ForEach(results) { item in
+                NavigationLink { BankExerciseDetail(exercise: item) } label: { questionLabel(item) }
             }
-            Section("题目 · \(results.count)") {
-                ForEach(results) { item in
-                    NavigationLink { BankExerciseDetail(exercise: item) } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Label(item.title, systemImage: store.completed.contains(item.id) ? "checkmark.circle.fill" : "circle")
-                            Text(item.tags.joined(separator: " · ") + " · 难度 \(item.difficulty)").font(.caption).foregroundColor(.secondary)
-                        }
-                    }
-                }
-                if results.isEmpty { Text("没有匹配题目。可以换个关键词，或用 AI 生成。").foregroundColor(.secondary) }
-            }
-        }.searchable(text: $query, prompt: "搜索列表、循环、文件、函数…")
-            .navigationTitle("编程练习")
-            .toolbar { Button { Task { await bank.refresh() } } label: { Image(systemName: "arrow.clockwise") }.disabled(bank.updating).accessibilityLabel("更新在线题库") }
-            .refreshable { await bank.refresh() }
-            .sheet(item: $generated) { item in NavigationStack { BankExerciseDetail(exercise: item) } }
-            .alert("AI 提示", isPresented: Binding(get: { !error.isEmpty }, set: { if !$0 { error = "" } })) { Button("知道了") { error = "" } } message: { Text(error) }
+            if results.isEmpty { Text("没有匹配题目。可以换个关键词，或用 AI 生成。").foregroundColor(.secondary) }
+        }
+    }
+    private func questionLabel(_ item: BankExercise) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(item.title, systemImage: store.completed.contains(item.id) ? "checkmark.circle.fill" : "circle")
+            Text(item.tags.joined(separator: " · ") + " · 难度 \(item.difficulty)").font(.caption).foregroundColor(.secondary)
+        }
+    }
+    private func generate(_ profile: AIProfile) {
+        generating = true
+        Task {
+            do { generated = try await bank.generate(topic: query, profile: profile) }
+            catch { error = error.localizedDescription }
+            generating = false
+        }
     }
 }
 struct BankExerciseDetail: View {
