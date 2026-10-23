@@ -192,7 +192,10 @@ struct BankSearchView: View {
                 guard !Task.isCancelled else { return }
                 generated = item
             }
-            catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+            catch {
+                guard !Task.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
             generating = false
         }
     }
