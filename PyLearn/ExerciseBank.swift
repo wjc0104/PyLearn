@@ -177,7 +177,7 @@ struct BankSearchView: View {
         generating = true
         Task {
             do { generated = try await bank.generate(topic: query, profile: profile) }
-            catch { error = error.localizedDescription }
+            catch { self.error = error.localizedDescription }
             generating = false
         }
     }
