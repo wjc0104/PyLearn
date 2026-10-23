@@ -92,7 +92,8 @@ def perform(payload):
             if operation == 'pull' and not _clean(path):
                 raise ValueError('请先提交本地修改；拉取不会覆盖你的代码。')
             if operation == 'pull':
-                porcelain.pull(path, remote, refspecs=[remote_ref + b':' + local_ref], ff_only=True, force=False, errstream=output, outstream=output, **options)
+                # Dulwich 1.2.19 v2 can advertise GitHub tips without downloading their objects.
+                porcelain.pull(path, remote, refspecs=[remote_ref + b':' + local_ref], protocol_version=0, ff_only=True, force=False, errstream=output, outstream=output, **options)
             else:
                 result = porcelain.push(path, remote, refspecs=[local_ref + b':' + remote_ref], force=False, errstream=output, outstream=output, **options)
                 if any(result.ref_status.values()): raise ValueError('远程拒绝推送，请先检查权限或拉取最新提交。')

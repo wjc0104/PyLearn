@@ -52,6 +52,27 @@ final class PyLearnTests: XCTestCase {
         XCTAssertThrowsError(try store.deleteProjectFile(project, path: ".git/config"))
     }
 
+    @MainActor
+    func testDeletionIsCancelledWhenPendingSaveFails() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let store = LearningStore(directory: base)
+        let project = try store.createProject(name: "回滚测试")
+        let document = try store.openProjectFile(project, path: "main.py")
+        let metadata = base.appendingPathComponent("library.json")
+        let original = try Data(contentsOf: metadata)
+        store.update(document.id, source: "print('pending edit')")
+        try FileManager.default.removeItem(at: metadata)
+        try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: false)
+        XCTAssertThrowsError(try store.deleteProjectFile(project, path: "main.py"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.projectFile(project.id, path: "main.py").path))
+        XCTAssertEqual(store.document(document.id)?.source, "print('pending edit')")
+        XCTAssertEqual(store.projects.first?.entry, "main.py")
+        try FileManager.default.removeItem(at: metadata)
+        try original.write(to: metadata)
+        try store.flushOrThrow()
+    }
+
     func testEmbeddedGitCommitsHistoryAndDeletedFiles() async throws {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)

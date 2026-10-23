@@ -54,6 +54,7 @@ struct CodeImportPicker: UIViewControllerRepresentable {
 
 struct CodeLibraryView: View {
     @EnvironmentObject private var store: LearningStore
+    @EnvironmentObject private var session: PythonSession
     @State private var importMode: CodeImportMode?
     @State private var selected: ScriptDocument?
     @State private var deleting: ScriptDocument?
@@ -102,7 +103,7 @@ struct CodeLibraryView: View {
                 }
             }
             .alert("文件提示", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("知道了") { store.error = nil } } message: { Text(store.error ?? "") }
-        }
+        }.disabled(session.working)
     }
     private var projectsSection: some View {
         Section("我的项目 · 长按操作") {
@@ -160,6 +161,7 @@ struct CodeLibraryView: View {
 
 struct ProjectView: View {
     @EnvironmentObject private var store: LearningStore
+    @EnvironmentObject private var session: PythonSession
     @State private var selected: ScriptDocument?
     @State private var files: [ProjectFile] = []
     @State private var newPath = ""
@@ -210,6 +212,7 @@ struct ProjectView: View {
             }
         }
         .navigationTitle(folder.isEmpty ? project?.name ?? "项目" : fileName(folder))
+        .disabled(session.working)
         .toolbar {
             Menu {
                 Button("新建文件") { newPath = ""; adding = true }
@@ -236,9 +239,9 @@ struct ProjectView: View {
             Button("取消", role: .cancel) {}
         }
         .onAppear { refresh() }
-        .confirmationDialog("删除项目中的“\(deletingFile.map { fileName($0.path) } ?? "")”？", isPresented: Binding(get: { deletingFile != nil }, set: { if !$0 { deletingFile = nil } }), titleVisibility: .visible) {
+        .confirmationDialog("删除项目中的“\(deletingFile.map { fileName($0.path) } ?? "")”？", isPresented: Binding(get: { deletingFile != nil }, set: { if !$0 { deletingFile = nil } }), titleVisibility: .visible, presenting: deletingFile) { file in
             Button("确认删除", role: .destructive) {
-                if let project, let file = deletingFile {
+                if let project {
                     do { try store.deleteProjectFile(project, path: file.path); refresh() }
                     catch { store.error = error.localizedDescription }
                 }
