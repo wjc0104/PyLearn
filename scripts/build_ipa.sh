@@ -9,6 +9,7 @@ xcodebuild -project PyLearn.xcodeproj -scheme PyLearn -configuration Release \
   -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath .build/device \
   CODE_SIGNING_ALLOWED=NO ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build > .build/device-build.log 2>&1 || { tail -100 .build/device-build.log; exit 1; }
 APP="$PWD/.build/device/Build/Products/Release-iphoneos/PyLearn.app"
+VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")
 while IFS= read -r -d '' framework; do
   codesign --force --sign - --timestamp=none "$framework"
 done < <(find "$APP/Frameworks" -depth -type d -name '*.framework' -print0)
@@ -18,6 +19,6 @@ STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/Payload"
 ditto "$APP" "$STAGE/Payload/PyLearn.app"
-ditto -c -k --sequesterRsrc --keepParent "$STAGE/Payload" dist/PyLearn-0.1.0.ipa
-python3 scripts/inspect_ipa.py dist/PyLearn-0.1.0.ipa | tee dist/verification.json
-shasum -a 256 dist/PyLearn-0.1.0.ipa > dist/SHA256SUMS.txt
+ditto -c -k --sequesterRsrc --keepParent "$STAGE/Payload" "dist/PyLearn-$VERSION.ipa"
+python3 scripts/inspect_ipa.py "dist/PyLearn-$VERSION.ipa" | tee dist/verification.json
+shasum -a 256 "dist/PyLearn-$VERSION.ipa" > dist/SHA256SUMS.txt

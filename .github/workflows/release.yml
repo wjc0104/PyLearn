@@ -1,0 +1,50 @@
+name: 发布发行版
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 版本号，需与 project.yml 一致（不带 v）
+        type: string
+        required: true
+        default: "0.1.0"
+      prerelease:
+        description: 创建预发布版本（正式发行时取消勾选）
+        type: boolean
+        default: true
+permissions:
+  contents: read
+jobs:
+  build:
+    uses: ./.github/workflows/build-ipa.yml
+    with:
+      native_tests: true
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: PyLearn-iOS16.3-TrollStore
+          path: dist
+      - name: 验证并发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          PRE_RELEASE: ${{ inputs.prerelease }}
+        run: |
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            printf '版本号必须是三个数字，例如 0.1.0\n' >&2
+            exit 1
+          fi
+          python3 scripts/inspect_ipa.py "dist/PyLearn-$RELEASE_VERSION.ipa" > dist/verification.json
+          python3 -c 'import json,os; v=json.load(open("dist/verification.json")); assert v["version"] == os.environ["RELEASE_VERSION"], "发行版本与安装包不一致"'
+          sha256sum -c dist/SHA256SUMS.txt
+          FLAGS=()
+          if [ "$PRE_RELEASE" = "true" ]; then FLAGS+=(--prerelease); fi
+          gh release create "v$RELEASE_VERSION" dist/*.ipa dist/verification.json dist/SHA256SUMS.txt --target "$GITHUB_SHA" --title "PyLearn $RELEASE_VERSION" --notes-file docs/release-notes.md "${FLAGS[@]}"

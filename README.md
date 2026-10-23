@@ -17,16 +17,23 @@
 
 ## 下载与安装
 
-1. 打开仓库的 [Actions 工作流](https://github.com/wjc0104/PyLearn/actions/workflows/build-ipa.yml)。
-2. 选择一次绿色成功的 **Build IPA** 运行记录。
-3. 在 **Artifacts** 中下载 **PyLearn-iOS16.3-TrollStore**。
-4. 解压下载的 ZIP，得到 `PyLearn-0.1.0.ipa`，再通过巨魔商店安装。
+**正式版从 [GitHub Releases](https://github.com/wjc0104/PyLearn/releases) 下载。**选择对应版本，在附件中下载 `.ipa`，再通过巨魔商店安装。
 
-工作流产物保留 14 天。产物同时包含包检查记录、SHA256 校验文件和模拟器界面截图；不会自动发布 Release。
+目前尚未发布首个正式发行版，正在验证首版功能。正式发行版会附带 IPA 和 SHA256 校验文件，不以 Actions 临时产物代替。
+
+## 开发与测试版本
+
+[Actions 工作流](https://github.com/wjc0104/PyLearn/actions/workflows/build-ipa.yml)用于持续构建和开发测试，方便维护者在正式发行前安装验证。
+
+1. 选择一次成功的 **Build IPA** 运行记录。
+2. 在 **Artifacts** 中下载 **PyLearn-iOS16.3-TrollStore**。
+3. 解压 ZIP 后取得测试 IPA，使用巨魔商店安装。
+
+测试产物保留 14 天；包含包检查记录、SHA256 校验文件，以及启用模拟器测试时的结果和截图。测试产物不代表正式发行版。
 
 ## 构建与验证
 
-工作流会运行 Python 回归测试，构建 arm64 安装包，检查包结构及最低系统版本，再运行原生单元测试和模拟器界面测试。构建不需要 Apple 开发者签名证书；巨魔商店会在安装时处理签名。
+工作流会运行 Python 回归测试，构建 arm64 安装包，检查包结构及最低系统版本。推送应用变更时执行原生和模拟器界面测试；手动测试构建可以选择是否执行耗时较长的模拟器测试。构建不需要 Apple 开发者签名证书；巨魔商店会在安装时处理签名。
 
 本地构建需要 **macOS、完整 Xcode、XcodeGen 和 Python 3.12 及以上版本**：
 
@@ -42,6 +49,12 @@ bash scripts/build_ipa.sh
 - `dist/SHA256SUMS.txt`：SHA256 校验值。
 
 Windows 可以运行 Python 测试和 IPA 检查器，原生编译与模拟器测试需要 macOS。**编译或模拟器测试通过，不代表已经在物理 iOS 16.3 设备上验证安装与运行。**
+
+## 发行流程
+
+维护者确认版本准备好后，可以手动运行 **发布发行版** 工作流。输入与工程一致的版本号；默认创建预发布版本，准备正式发行时取消“预发布”选项。工作流会重新构建、执行原生测试并验证 IPA，通过后创建 GitHub Release，上传安装包和校验文件。
+
+普通代码推送和测试构建不会自动发布发行版。
 
 ## 首版范围与运行限制
 
