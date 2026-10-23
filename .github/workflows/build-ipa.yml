@@ -46,7 +46,7 @@ jobs:
           xcrun simctl boot "$SIMULATOR" || true
           xcrun simctl bootstatus "$SIMULATOR" -b
           set -o pipefail
-          xcodebuild -project PyLearn.xcodeproj -scheme PyLearn -configuration Debug -destination "id=$SIMULATOR" -destination-timeout 90 -parallel-testing-enabled NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 -derivedDataPath .build/simulator -resultBundlePath .build/NativeTests.xcresult CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES test 2>&1 | tee .build/native-tests.log | sed -n '/Test Suite\|Test Case\|error:\|Executed\|Testing started\|TEST SUCCEEDED\|TEST FAILED/p' || { tail -100 .build/native-tests.log; exit 1; }
+          xcodebuild -project PyLearn.xcodeproj -scheme PyLearn -configuration Debug -destination "id=$SIMULATOR" -destination-timeout 90 -parallel-testing-enabled NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 -derivedDataPath .build/simulator -resultBundlePath .build/NativeTests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO ONLY_ACTIVE_ARCH=YES test 2>&1 | tee .build/native-tests.log | sed -n '/Test Suite\|Test Case\|error:\|Executed\|Testing started\|TEST SUCCEEDED\|TEST FAILED/p' || { tail -100 .build/native-tests.log; exit 1; }
           xcrun xcresulttool get test-results summary --path .build/NativeTests.xcresult > dist/native-test-summary.json
           xcrun xcresulttool export attachments --path .build/NativeTests.xcresult --output-path dist/screenshots
       - name: Upload IPA and verification

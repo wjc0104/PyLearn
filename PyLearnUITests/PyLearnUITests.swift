@@ -12,7 +12,10 @@ final class PyLearnUITests: XCTestCase {
         app.buttons["运行脚本"].tap()
         XCTAssertTrue(app.staticTexts["运行完成"].waitForExistence(timeout: 20))
         app.buttons["完成"].tap()
-        app.buttons["添加项目文件"].tap()
+        XCTAssertTrue(app.navigationBars["main.py"].waitForNonExistence(timeout: 5))
+        let addFile = app.buttons["添加项目文件"]
+        XCTAssertTrue(addFile.waitForExistence(timeout: 5))
+        addFile.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         app.buttons["新建文件"].tap()
         let name = app.alerts.textFields.firstMatch
         XCTAssertTrue(name.waitForExistence(timeout: 3))
