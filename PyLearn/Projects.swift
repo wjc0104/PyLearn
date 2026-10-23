@@ -61,10 +61,11 @@ extension LearningStore {
         try readExternal(url) { try copyFolder($0) }
     }
 
-    private func copyFolder(_ url: URL) throws -> ScriptProject {
+    private func copyFolder(_ externalURL: URL) throws -> ScriptProject {
+        let url = externalURL.standardizedFileURL.resolvingSymlinksInPath()
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else { throw failure("请选择文件夹。") }
-        let project = ScriptProject(name: url.lastPathComponent)
+        let project = ScriptProject(name: externalURL.lastPathComponent)
         let target = projectRoot(project.id)
         try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
         do {
