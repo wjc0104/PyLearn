@@ -1,0 +1,11 @@
+.cache/
+.build/
+.superpowers/
+Vendor/
+*.xcodeproj/
+DerivedData/
+dist/
+__pycache__/
+*.pyc
+.DS_Store
+xcuserdata/
