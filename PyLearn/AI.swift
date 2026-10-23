@@ -28,20 +28,33 @@ struct AIProfile: Codable, Identifiable {
     static let shared = AIProfiles()
     @Published var items: [AIProfile] = []
     @Published var selected = ""
-    init() {
-        if let data = UserDefaults.standard.data(forKey: "ai.profiles"), let value = try? JSONDecoder().decode([AIProfile].self, from: data) { items = value }
-        selected = UserDefaults.standard.string(forKey: "ai.selected") ?? ""
+    private let defaults: UserDefaults
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if let data = defaults.data(forKey: "ai.profiles"), let value = try? JSONDecoder().decode([AIProfile].self, from: data) { items = value }
+        selected = defaults.string(forKey: "ai.selected") ?? ""
     }
     var active: AIProfile? { items.first { $0.id.uuidString == selected } ?? items.first }
-    func save(_ profile: AIProfile, key: String) throws {
+    private func save(_ profile: AIProfile, key: String) throws {
         try SecretStore.save(key, account: "ai." + profile.id.uuidString)
         if let index = items.firstIndex(where: { $0.id == profile.id }) { items[index] = profile } else { items.append(profile) }
         selected = profile.id.uuidString
         try persist()
     }
+    func saveVerified(_ profile: AIProfile, key: String, transport: URLSession? = nil) async throws {
+        _ = try await AIClient.text(profile, key: key, prompt: "请只回复 OK。", maxTokens: 256, transport: transport)
+        try Task.checkCancellation()
+        try save(profile, key: key)
+    }
     func persist() throws {
-        UserDefaults.standard.set(try JSONEncoder().encode(items), forKey: "ai.profiles")
-        UserDefaults.standard.set(selected, forKey: "ai.selected")
+        defaults.set(try JSONEncoder().encode(items), forKey: "ai.profiles")
+        defaults.set(selected, forKey: "ai.selected")
+    }
+    func useVerified(_ profile: AIProfile, model: String, transport: URLSession? = nil) async throws {
+        var candidate = profile
+        candidate.model = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard items.contains(where: { $0.id == profile.id }) else { throw AIClient.failure("该配置已被删除。") }
+        try await saveVerified(candidate, key: SecretStore.read("ai." + profile.id.uuidString) ?? "", transport: transport)
     }
     func remove(_ id: UUID) {
         items.removeAll { $0.id == id }
@@ -72,7 +85,7 @@ enum AIClient {
         guard let url = URL(string: profile.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/" + path) else { throw failure("API 地址无效。") }
         return url
     }
-    static func request(_ profile: AIProfile, key: String, path: String, body: [String: Any]? = nil) async throws -> [String: Any] {
+    static func request(_ profile: AIProfile, key: String, path: String, body: [String: Any]? = nil, transport: URLSession? = nil) async throws -> [String: Any] {
         var request = URLRequest(url: try endpoint(profile, path: path))
         request.timeoutInterval = 90
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -84,7 +97,7 @@ enum AIClient {
         default: if !key.isEmpty { request.setValue("Bearer " + key, forHTTPHeaderField: "Authorization") }
         }
         if let body { request.httpMethod = "POST"; request.httpBody = try JSONSerialization.data(withJSONObject: body) }
-        let (bytes, response) = try await session.bytes(for: request)
+        let (bytes, response) = try await (transport ?? session).bytes(for: request)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
             throw failure([401:"密钥无效或与服务地址不匹配。",403:"服务拒绝访问，请检查权限。",404:"接口或模型不存在，请检查地址和请求格式。",429:"达到服务限额，请稍后重试或检查余额。"][code] ?? "服务请求失败（HTTP \(code)）。")
@@ -99,23 +112,23 @@ enum AIClient {
         let rows = (json["data"] ?? json["models"]) as? [[String: Any]] ?? []
         return rows.compactMap { ($0["id"] ?? $0["name"]) as? String }.map { $0.replacingOccurrences(of: "models/", with: "") }.sorted()
     }
-    static func text(_ profile: AIProfile, key: String, prompt: String) async throws -> String {
+    static func text(_ profile: AIProfile, key: String, prompt: String, maxTokens: Int = 4096, transport: URLSession? = nil) async throws -> String {
         guard !profile.model.isEmpty else { throw failure("先在设置中填写模型名称。") }
         var body: [String: Any] = ["model":profile.model]
         let path: String
         switch profile.format {
         case .chat:
-            path = "chat/completions"; body["messages"] = [["role":"user","content":prompt]]; body["max_tokens"] = 4096
+            path = "chat/completions"; body["messages"] = [["role":"user","content":prompt]]; body["max_tokens"] = maxTokens
         case .responses:
-            path = "responses"; body["input"] = prompt; body["store"] = false; body["max_output_tokens"] = 4096
+            path = "responses"; body["input"] = prompt; body["store"] = false; body["max_output_tokens"] = maxTokens
         case .anthropic:
-            path = "messages"; body["max_tokens"] = 4096; body["messages"] = [["role":"user","content":prompt]]
+            path = "messages"; body["max_tokens"] = maxTokens; body["messages"] = [["role":"user","content":prompt]]
         case .gemini:
             guard profile.model.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil else { throw failure("Gemini 模型名称格式无效。") }
             path = "models/" + profile.model + ":generateContent"
-            body = ["contents":[["parts":[["text":prompt]]]], "generationConfig":["maxOutputTokens":4096]]
+            body = ["contents":[["parts":[["text":prompt]]]], "generationConfig":["maxOutputTokens":maxTokens]]
         }
-        let json = try await request(profile, key: key, path: path, body: body)
+        let json = try await request(profile, key: key, path: path, body: body, transport: transport)
         var value: String?
         switch profile.format {
         case .chat:
@@ -137,12 +150,19 @@ enum AIClient {
 struct AIProfilesView: View {
     @ObservedObject private var profiles = AIProfiles.shared
     @State private var editing: AIProfile?
+    @State private var testing = false
+    @State private var message = ""
     var body: some View {
         List {
             Section("当前出题配置") {
                 ForEach(profiles.items) { profile in
                     Button {
-                        profiles.selected = profile.id.uuidString; try? profiles.persist()
+                        testing = true
+                        Task {
+                            do { try await profiles.useVerified(profile, model: profile.model); message = "本次请求成功，已切换。" }
+                            catch { message = "切换失败，继续使用原模型。\n" + error.localizedDescription }
+                            testing = false
+                        }
                     } label: { Label(profile.name, systemImage: profiles.active?.id == profile.id ? "checkmark.circle.fill" : "circle") }
                         .contextMenu {
                             Button("编辑") { editing = profile }
@@ -159,8 +179,10 @@ struct AIProfilesView: View {
                     }
                 }
             }
-            Text("长按现有配置可编辑或删除。只有点击出题/翻译时才生成请求，费用由服务商收取。").font(.caption).foregroundColor(.secondary)
-        }.navigationTitle("AI 服务商")
+            if testing { ProgressView("正在测试模型…") }
+            if !message.isEmpty { Text(message).font(.caption).textSelection(.enabled) }
+            Text("长按配置可编辑或删除。切换、保存配置、出题和翻译会调用服务；模型测试可能产生少量费用。").font(.caption).foregroundColor(.secondary)
+        }.navigationTitle("AI 服务商").disabled(testing)
             .sheet(item: $editing) { profile in NavigationStack { AIProfileEditor(profile: profile) } }
     }
 }
@@ -171,6 +193,7 @@ struct AIProfileEditor: View {
     @State private var message = ""
     @State private var models: [String] = []
     @State private var loading = false
+    @State private var saveTask: Task<Void, Never>?
     var body: some View {
         Form {
             TextField("配置名称", text: $profile.name)
@@ -179,17 +202,24 @@ struct AIProfileEditor: View {
             SecureField("API Key", text: $key).autocorrectionDisabled().textInputAutocapitalization(.never)
             TextField("模型 ID", text: $profile.model).autocorrectionDisabled().textInputAutocapitalization(.never)
             Toggle("允许局域网 HTTP（明文连接）", isOn: $profile.allowLocalHTTP)
-            Button("测试连接并读取模型") {
+            Button("读取可选模型") {
                 loading = true
                 Task { do { models = try await AIClient.models(profile, key: key); message = models.isEmpty ? "连接成功；服务未提供模型列表，可手动填写。" : "连接成功，点击下方模型即可选择。" } catch { message = error.localizedDescription }; loading = false }
             }.disabled(loading)
             if loading { ProgressView() }
             ForEach(models.prefix(100), id: \.self) { model in Button(model) { profile.model = model } }
             Text(message).font(.caption).textSelection(.enabled)
-            Button("保存配置") {
-                do { _ = try AIClient.endpoint(profile, path: "models"); try AIProfiles.shared.save(profile, key: key); dismiss() } catch { message = error.localizedDescription }
-            }
+            Text("保存前会实际请求所选模型，成功后保存并使用；测试可能产生少量费用。").font(.caption).foregroundColor(.secondary)
+            Button("测试并保存配置") {
+                loading = true
+                saveTask = Task {
+                    do { try await AIProfiles.shared.saveVerified(profile, key: key); dismiss() }
+                    catch { if !Task.isCancelled { message = error.localizedDescription } }
+                    loading = false
+                }
+            }.disabled(loading)
         }.navigationTitle(profile.name).onAppear { key = SecretStore.read("ai." + profile.id.uuidString) ?? "" }
+            .onDisappear { saveTask?.cancel() }
             .toolbar { Button("取消") { dismiss() } }
     }
 }

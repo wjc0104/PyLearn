@@ -1,10 +1,1177 @@
 [
-  {"id":"output","title":"第一行 Python","symbol":"terminal","summary":"用 print() 把想法显示出来。","body":"Python 按顺序执行语句。print() 可以输出文字和数字，文字需要用成对的引号包起来。井号 # 后面是注释，不会执行。\n\n试着修改下面的问候语，然后点击运行。","example":"# 你好，Python！\nprint(\"你好，世界！\")\nprint(2 + 3)\n","exercises":[{"id":"output-1","title":"打个招呼","prompt":"输出一行：Hello, Python!","starter":"# 使用 print 输出问候语\n","expected":"Hello, Python!","hint":"把 Hello, Python! 放在引号中，传给 print。","solution":"print('Hello, Python!')"},{"id":"output-2","title":"计算结果","prompt":"计算并输出 7 × 8 的结果。","starter":"print()\n","expected":"56","hint":"Python 使用 * 表示乘法。","solution":"print(7 * 8)"}]},
-  {"id":"variables","title":"变量与输入","symbol":"character.cursor.ibeam","summary":"给数据取名字，接收你的输入。","body":"变量用来保存一个值。等号 = 表示赋值，变量名需要先定义再使用。\n\ninput() 可以读取控制台输入，返回的内容是字符串。运行下面的示例，在输入栏输入名字并发送。","example":"name = input(\"你叫什么名字？\")\nprint(\"你好，\" + name)\n","exercises":[{"id":"variables-1","title":"保存年龄","prompt":"把 18 保存到变量 age，然后输出 age。","starter":"# 定义 age，再输出\n","expected":"18","hint":"赋值写作 age = 18。","solution":"age = 18\nprint(age)"},{"id":"variables-2","title":"更新变量","prompt":"先令 score = 10，再增加 5，输出最终分数。","starter":"score = 10\n# 增加分数并输出\n","expected":"15","hint":"可以写 score = score + 5。","solution":"score = 10\nscore += 5\nprint(score)"}]},
-  {"id":"types","title":"数字与字符串","symbol":"textformat.123","summary":"认识类型，进行计算与转换。","body":"整数是 int，小数是 float，文字是 str。两个字符串可以用 + 连接。int() 把合适的文字转换成整数，str() 把数字转换成文字。\n\n注意：文字 '12' 和数字 12 是不同的值。","example":"price = 12.5\ncount = 2\nprint(price * count)\nprint(int(\"12\") + 3)\n","exercises":[{"id":"types-1","title":"文字转数字","prompt":"把字符串 '20' 转为整数，加 6 后输出。","starter":"text = '20'\n","expected":"26","hint":"使用 int(text) 转换。","solution":"text = '20'\nprint(int(text) + 6)"},{"id":"types-2","title":"字符串长度","prompt":"输出字符串 'Python' 的长度。","starter":"word = 'Python'\n","expected":"6","hint":"len(word) 可以获取长度。","solution":"word = 'Python'\nprint(len(word))"}]},
-  {"id":"conditions","title":"条件判断","symbol":"arrow.triangle.branch","summary":"让程序根据条件选择下一步。","body":"if 后面写条件，行末需要冒号。满足条件时执行缩进的语句，否则可以执行 else。比较相等使用 ==，不要与赋值的 = 混淆。\n\n同一个代码块建议统一使用四个空格缩进。","example":"score = 85\nif score >= 60:\n    print(\"及格\")\nelse:\n    print(\"继续努力\")\n","exercises":[{"id":"conditions-1","title":"判断奇偶","prompt":"判断 n = 8 是否是偶数，偶数输出 '偶数'，否则输出 '奇数'。","starter":"n = 8\n","expected":"偶数","hint":"n % 2 == 0 表示余数为零。","solution":"n = 8\nif n % 2 == 0:\n    print('偶数')\nelse:\n    print('奇数')"},{"id":"conditions-2","title":"选择较大值","prompt":"比较 a = 3 和 b = 9，输出较大的数。","starter":"a = 3\nb = 9\n","expected":"9","hint":"使用 if a > b 判断。","solution":"a = 3\nb = 9\nif a > b:\n    print(a)\nelse:\n    print(b)"}]},
-  {"id":"loops","title":"循环","symbol":"repeat","summary":"把重复工作交给程序。","body":"for 可以逐个遍历数据。range(3) 依次产生 0、1、2，不包含终点 3。while 会在条件为真时重复执行，需要确保条件最终会改变。\n\n如果不小心写了无限循环，可以点击停止。","example":"for number in range(1, 4):\n    print(number)\n","exercises":[{"id":"loops-1","title":"数到三","prompt":"使用循环依次输出 1、2、3，每个数字一行。","starter":"for n in range(1, 4):\n    # 输出 n\n    pass\n","expected":"1\n2\n3","hint":"将 pass 替换为 print(n)。","solution":"for n in range(1, 4):\n    print(n)"},{"id":"loops-2","title":"累计求和","prompt":"使用循环计算 1 到 5 的和，只输出最后的总和。","starter":"total = 0\n","expected":"15","hint":"每次把 n 加到 total，循环结束后输出。","solution":"total = 0\nfor n in range(1, 6):\n    total += n\nprint(total)"}]},
-  {"id":"lists","title":"列表","symbol":"list.bullet","summary":"按顺序保存多个值。","body":"列表使用方括号 [] 保存数据。索引从 0 开始，items[0] 是第一个元素。append() 可以追加元素，len() 可以获取元素数量。\n\n访问不存在的索引会产生 IndexError。","example":"fruits = [\"苹果\", \"香蕉\"]\nfruits.append(\"橘子\")\nprint(fruits[0])\nprint(len(fruits))\n","exercises":[{"id":"lists-1","title":"第一个元素","prompt":"输出列表 [10, 20, 30] 的第一个元素。","starter":"numbers = [10, 20, 30]\n","expected":"10","hint":"第一个元素的索引是 0。","solution":"numbers = [10, 20, 30]\nprint(numbers[0])"},{"id":"lists-2","title":"追加元素","prompt":"向列表 [1, 2] 追加 3，然后输出列表的长度。","starter":"numbers = [1, 2]\n","expected":"3","hint":"先调用 numbers.append(3)，再使用 len。","solution":"numbers = [1, 2]\nnumbers.append(3)\nprint(len(numbers))"}]},
-  {"id":"dictionaries","title":"字典","symbol":"curlybraces","summary":"通过名字查找对应的数据。","body":"字典使用花括号 {} 保存键和值。通过键可以获取或更新对应的值。键通常是字符串，值可以是数字、文字或其他对象。\n\nget() 可以为不存在的键提供默认值。","example":"student = {\"name\": \"小明\", \"score\": 90}\nprint(student[\"name\"])\nprint(student.get(\"age\", \"未填写\"))\n","exercises":[{"id":"dictionaries-1","title":"读取姓名","prompt":"从字典 person 中读取 name，输出 Alice。","starter":"person = {'name': 'Alice', 'age': 18}\n","expected":"Alice","hint":"使用 person['name']。","solution":"person = {'name': 'Alice', 'age': 18}\nprint(person['name'])"},{"id":"dictionaries-2","title":"更新分数","prompt":"把 student 的 score 更新为 100，再输出 score。","starter":"student = {'score': 60}\n","expected":"100","hint":"通过 student['score'] = 100 更新。","solution":"student = {'score': 60}\nstudent['score'] = 100\nprint(student['score'])"}]},
-  {"id":"functions","title":"函数","symbol":"function","summary":"把一段逻辑变成可以复用的工具。","body":"def 用来定义函数，括号中写参数，函数体需要缩进。return 把结果交给调用者；print 只负责输出。\n\n先定义函数，再通过函数名和括号调用它。","example":"def greet(name):\n    return \"你好，\" + name\n\nprint(greet(\"Python\"))\n","exercises":[{"id":"functions-1","title":"两数之和","prompt":"定义 add(a, b) 返回两数之和，调用 add(3, 4) 并输出结果。","starter":"def add(a, b):\n    pass\n\nprint(add(3, 4))\n","expected":"7","hint":"函数体写 return a + b。","solution":"def add(a, b):\n    return a + b\nprint(add(3, 4))"},{"id":"functions-2","title":"计算平方","prompt":"定义 square(n) 返回平方，输出 square(6)。","starter":"def square(n):\n    pass\n\nprint(square(6))\n","expected":"36","hint":"n * n 就是 n 的平方。","solution":"def square(n):\n    return n * n\nprint(square(6))"}]}
+  {
+    "id": "output",
+    "title": "第一行 Python",
+    "symbol": "terminal",
+    "summary": "用 print() 把想法显示出来。",
+    "body": "Python 按顺序执行语句。print() 可以输出文字和数字，文字需要用成对的引号包起来。井号 # 后面是注释，不会执行。\n\n试着修改下面的问候语，然后点击运行。\n\n学习顺序：先预测示例输出，再运行验证，最后修改一个值观察变化。遇到报错时先看中文提示和行号。章节练习提供提示与参考答案，先自己完成，再比较实现。",
+    "example": "# 你好，Python！\nprint(\"你好，世界！\")\nprint(2 + 3)\n",
+    "exercises": [
+      {
+        "id": "output-1",
+        "title": "打个招呼",
+        "prompt": "输出一行：Hello, Python!",
+        "starter": "# 使用 print 输出问候语\n",
+        "expected": "Hello, Python!",
+        "hint": "把 Hello, Python! 放在引号中，传给 print。",
+        "solution": "print('Hello, Python!')"
+      },
+      {
+        "id": "output-2",
+        "title": "计算结果",
+        "prompt": "计算并输出 7 × 8 的结果。",
+        "starter": "print()\n",
+        "expected": "56",
+        "hint": "Python 使用 * 表示乘法。",
+        "solution": "print(7 * 8)"
+      },
+      {
+        "id": "output-3",
+        "title": "自定义分隔符",
+        "prompt": "在一行输出 Python | 学习 | 开始，竖线两侧各一个空格。",
+        "hint": "print 的 sep 参数可以替换默认空格。",
+        "solution": "print('Python', '学习', '开始', sep=' | ')",
+        "expected": "Python | 学习 | 开始",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "output-4",
+        "title": "两行输出",
+        "prompt": "第一行输出第一步，第二行输出第二步。",
+        "hint": "两次调用 print；也可以使用换行转义字符。",
+        "solution": "print('第一步')\nprint('第二步')",
+        "expected": "第一步\n第二步",
+        "starter": "# 在这里完成任务\n"
+      }
+    ],
+    "stage": "基础入门"
+  },
+  {
+    "id": "variables",
+    "title": "变量与输入",
+    "symbol": "character.cursor.ibeam",
+    "summary": "给数据取名字，接收你的输入。",
+    "body": "变量用来保存一个值。等号 = 表示赋值，变量名需要先定义再使用。\n\ninput() 可以读取控制台输入，返回的内容是字符串。运行下面的示例，在输入栏输入名字并发送。\n\n学习顺序：先预测示例输出，再运行验证，最后修改一个值观察变化。遇到报错时先看中文提示和行号。章节练习提供提示与参考答案，先自己完成，再比较实现。",
+    "example": "name = input(\"你叫什么名字？\")\nprint(\"你好，\" + name)\n",
+    "exercises": [
+      {
+        "id": "variables-1",
+        "title": "保存年龄",
+        "prompt": "把 18 保存到变量 age，然后输出 age。",
+        "starter": "# 定义 age，再输出\n",
+        "expected": "18",
+        "hint": "赋值写作 age = 18。",
+        "solution": "age = 18\nprint(age)"
+      },
+      {
+        "id": "variables-2",
+        "title": "更新变量",
+        "prompt": "先令 score = 10，再增加 5，输出最终分数。",
+        "starter": "score = 10\n# 增加分数并输出\n",
+        "expected": "15",
+        "hint": "可以写 score = score + 5。",
+        "solution": "score = 10\nscore += 5\nprint(score)"
+      },
+      {
+        "id": "variables-3",
+        "title": "交换变量",
+        "prompt": "令 a=3、b=8，交换两个变量后依次输出 a 和 b。",
+        "hint": "右侧先计算，再同时赋给左侧变量。",
+        "solution": "a, b = 3, 8\na, b = b, a\nprint(a, b)",
+        "expected": "8 3",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "variables-4",
+        "title": "累计计数",
+        "prompt": "初始 count=10，增加3后减去2，输出 count。",
+        "hint": "使用 += 和 -= 更新变量。",
+        "solution": "count=10\ncount+=3\ncount-=2\nprint(count)",
+        "expected": "11",
+        "starter": "# 在这里完成任务\n"
+      }
+    ],
+    "stage": "基础入门"
+  },
+  {
+    "id": "types",
+    "title": "数字与字符串",
+    "symbol": "textformat.123",
+    "summary": "认识类型，进行计算与转换。",
+    "body": "整数是 int，小数是 float，文字是 str。两个字符串可以用 + 连接。int() 把合适的文字转换成整数，str() 把数字转换成文字。\n\n注意：文字 '12' 和数字 12 是不同的值。\n\n学习顺序：先预测示例输出，再运行验证，最后修改一个值观察变化。遇到报错时先看中文提示和行号。章节练习提供提示与参考答案，先自己完成，再比较实现。",
+    "example": "price = 12.5\ncount = 2\nprint(price * count)\nprint(int(\"12\") + 3)\n",
+    "exercises": [
+      {
+        "id": "types-1",
+        "title": "文字转数字",
+        "prompt": "把字符串 '20' 转为整数，加 6 后输出。",
+        "starter": "text = '20'\n",
+        "expected": "26",
+        "hint": "使用 int(text) 转换。",
+        "solution": "text = '20'\nprint(int(text) + 6)"
+      },
+      {
+        "id": "types-2",
+        "title": "字符串长度",
+        "prompt": "输出字符串 'Python' 的长度。",
+        "starter": "word = 'Python'\n",
+        "expected": "6",
+        "hint": "len(word) 可以获取长度。",
+        "solution": "word = 'Python'\nprint(len(word))"
+      },
+      {
+        "id": "types-3",
+        "title": "字符串转整数",
+        "prompt": "把字符串 \"42\" 转换成整数，加8后输出。",
+        "hint": "int 转换文本，不能把字符串和整数直接相加。",
+        "solution": "number=int('42')\nprint(number+8)",
+        "expected": "50",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "types-4",
+        "title": "格式化金额",
+        "prompt": "单价12.5，数量3，使用 f-string 输出 总价：37.50。",
+        "hint": "使用 :.2f 保留两位小数。",
+        "solution": "price=12.5\nquantity=3\nprint(f'总价：{price*quantity:.2f}')",
+        "expected": "总价：37.50",
+        "starter": "# 在这里完成任务\n"
+      }
+    ],
+    "stage": "基础入门"
+  },
+  {
+    "id": "conditions",
+    "title": "条件判断",
+    "symbol": "arrow.triangle.branch",
+    "summary": "让程序根据条件选择下一步。",
+    "body": "if 后面写条件，行末需要冒号。满足条件时执行缩进的语句，否则可以执行 else。比较相等使用 ==，不要与赋值的 = 混淆。\n\n同一个代码块建议统一使用四个空格缩进。\n\n学习顺序：先预测示例输出，再运行验证，最后修改一个值观察变化。遇到报错时先看中文提示和行号。章节练习提供提示与参考答案，先自己完成，再比较实现。",
+    "example": "score = 85\nif score >= 60:\n    print(\"及格\")\nelse:\n    print(\"继续努力\")\n",
+    "exercises": [
+      {
+        "id": "conditions-1",
+        "title": "判断奇偶",
+        "prompt": "判断 n = 8 是否是偶数，偶数输出 '偶数'，否则输出 '奇数'。",
+        "starter": "n = 8\n",
+        "expected": "偶数",
+        "hint": "n % 2 == 0 表示余数为零。",
+        "solution": "n = 8\nif n % 2 == 0:\n    print('偶数')\nelse:\n    print('奇数')"
+      },
+      {
+        "id": "conditions-2",
+        "title": "选择较大值",
+        "prompt": "比较 a = 3 和 b = 9，输出较大的数。",
+        "starter": "a = 3\nb = 9\n",
+        "expected": "9",
+        "hint": "使用 if a > b 判断。",
+        "solution": "a = 3\nb = 9\nif a > b:\n    print(a)\nelse:\n    print(b)"
+      },
+      {
+        "id": "conditions-3",
+        "title": "分数分级",
+        "prompt": "score=82；90及以上输出优秀，60至89输出及格，否则输出继续努力。",
+        "hint": "从较大的分界值开始判断。",
+        "solution": "score=82\nif score>=90:\n print('优秀')\nelif score>=60:\n print('及格')\nelse:\n print('继续努力')",
+        "expected": "及格",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "conditions-4",
+        "title": "双重条件",
+        "prompt": "age=20、has_ticket=True，只有年龄至少18且有票时输出允许进入。",
+        "hint": "and 要求两个条件都成立。",
+        "solution": "age=20\nhas_ticket=True\nif age>=18 and has_ticket:\n print('允许进入')",
+        "expected": "允许进入",
+        "starter": "# 在这里完成任务\n"
+      }
+    ],
+    "stage": "基础入门"
+  },
+  {
+    "id": "loops",
+    "title": "循环",
+    "symbol": "repeat",
+    "summary": "把重复工作交给程序。",
+    "body": "for 可以逐个遍历数据。range(3) 依次产生 0、1、2，不包含终点 3。while 会在条件为真时重复执行，需要确保条件最终会改变。\n\n如果不小心写了无限循环，可以点击停止。\n\n学习顺序：先预测示例输出，再运行验证，最后修改一个值观察变化。遇到报错时先看中文提示和行号。章节练习提供提示与参考答案，先自己完成，再比较实现。",
+    "example": "for number in range(1, 4):\n    print(number)\n",
+    "exercises": [
+      {
+        "id": "loops-1",
+        "title": "数到三",
+        "prompt": "使用循环依次输出 1、2、3，每个数字一行。",
+        "starter": "for n in range(1, 4):\n    # 输出 n\n    pass\n",
+        "expected": "1\n2\n3",
+        "hint": "将 pass 替换为 print(n)。",
+        "solution": "for n in range(1, 4):\n    print(n)"
+      },
+      {
+        "id": "loops-2",
+        "title": "累计求和",
+        "prompt": "使用循环计算 1 到 5 的和，只输出最后的总和。",
+        "starter": "total = 0\n",
+        "expected": "15",
+        "hint": "每次把 n 加到 total，循环结束后输出。",
+        "solution": "total = 0\nfor n in range(1, 6):\n    total += n\nprint(total)"
+      },
+      {
+        "id": "loops-3",
+        "title": "偶数求和",
+        "prompt": "计算1到10之间所有偶数的和并输出。",
+        "hint": "range 的结束值不包含在内；偶数除2的余数是0。",
+        "solution": "total=0\nfor n in range(1,11):\n if n%2==0:\n  total+=n\nprint(total)",
+        "expected": "30",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "loops-4",
+        "title": "倒计时",
+        "prompt": "用 while 依次输出3、2、1，最后输出开始。",
+        "hint": "每轮循环都要减少计数，避免无限循环。",
+        "solution": "n=3\nwhile n>0:\n print(n)\n n-=1\nprint('开始')",
+        "expected": "3\n2\n1\n开始",
+        "starter": "# 在这里完成任务\n"
+      }
+    ],
+    "stage": "基础入门"
+  },
+  {
+    "id": "lists",
+    "title": "列表",
+    "symbol": "list.bullet",
+    "summary": "按顺序保存多个值。",
+    "body": "列表使用方括号 [] 保存数据。索引从 0 开始，items[0] 是第一个元素。append() 可以追加元素，len() 可以获取元素数量。\n\n访问不存在的索引会产生 IndexError。\n\n学习顺序：先预测示例输出，再运行验证，最后修改一个值观察变化。遇到报错时先看中文提示和行号。章节练习提供提示与参考答案，先自己完成，再比较实现。",
+    "example": "fruits = [\"苹果\", \"香蕉\"]\nfruits.append(\"橘子\")\nprint(fruits[0])\nprint(len(fruits))\n",
+    "exercises": [
+      {
+        "id": "lists-1",
+        "title": "第一个元素",
+        "prompt": "输出列表 [10, 20, 30] 的第一个元素。",
+        "starter": "numbers = [10, 20, 30]\n",
+        "expected": "10",
+        "hint": "第一个元素的索引是 0。",
+        "solution": "numbers = [10, 20, 30]\nprint(numbers[0])"
+      },
+      {
+        "id": "lists-2",
+        "title": "追加元素",
+        "prompt": "向列表 [1, 2] 追加 3，然后输出列表的长度。",
+        "starter": "numbers = [1, 2]\n",
+        "expected": "3",
+        "hint": "先调用 numbers.append(3)，再使用 len。",
+        "solution": "numbers = [1, 2]\nnumbers.append(3)\nprint(len(numbers))"
+      },
+      {
+        "id": "lists-3",
+        "title": "过滤成绩",
+        "prompt": "从 [50,80,90,40] 中保留至少60分的成绩，输出新列表。",
+        "hint": "新建列表，循环中满足条件时 append。",
+        "solution": "scores=[50,80,90,40]\npassed=[]\nfor score in scores:\n if score>=60:\n  passed.append(score)\nprint(passed)",
+        "expected": "[80, 90]",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "lists-4",
+        "title": "排序与切片",
+        "prompt": "将 [5,1,9,3] 降序排序，输出前两个数。",
+        "hint": "sorted(..., reverse=True) 返回新列表。",
+        "solution": "numbers=[5,1,9,3]\nprint(sorted(numbers,reverse=True)[:2])",
+        "expected": "[9, 5]",
+        "starter": "# 在这里完成任务\n"
+      }
+    ],
+    "stage": "基础入门"
+  },
+  {
+    "id": "dictionaries",
+    "title": "字典",
+    "symbol": "curlybraces",
+    "summary": "通过名字查找对应的数据。",
+    "body": "字典使用花括号 {} 保存键和值。通过键可以获取或更新对应的值。键通常是字符串，值可以是数字、文字或其他对象。\n\nget() 可以为不存在的键提供默认值。\n\n学习顺序：先预测示例输出，再运行验证，最后修改一个值观察变化。遇到报错时先看中文提示和行号。章节练习提供提示与参考答案，先自己完成，再比较实现。",
+    "example": "student = {\"name\": \"小明\", \"score\": 90}\nprint(student[\"name\"])\nprint(student.get(\"age\", \"未填写\"))\n",
+    "exercises": [
+      {
+        "id": "dictionaries-1",
+        "title": "读取姓名",
+        "prompt": "从字典 person 中读取 name，输出 Alice。",
+        "starter": "person = {'name': 'Alice', 'age': 18}\n",
+        "expected": "Alice",
+        "hint": "使用 person['name']。",
+        "solution": "person = {'name': 'Alice', 'age': 18}\nprint(person['name'])"
+      },
+      {
+        "id": "dictionaries-2",
+        "title": "更新分数",
+        "prompt": "把 student 的 score 更新为 100，再输出 score。",
+        "starter": "student = {'score': 60}\n",
+        "expected": "100",
+        "hint": "通过 student['score'] = 100 更新。",
+        "solution": "student = {'score': 60}\nstudent['score'] = 100\nprint(student['score'])"
+      },
+      {
+        "id": "dictionaries-3",
+        "title": "安全取值",
+        "prompt": "字典只有 name=小明，读取不存在的 score 时用0作为默认值并输出。",
+        "hint": "使用 get(key, default) 避免 KeyError。",
+        "solution": "student={'name':'小明'}\nprint(student.get('score',0))",
+        "expected": "0",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "dictionaries-4",
+        "title": "统计单词",
+        "prompt": "统计列表 [\"py\",\"git\",\"py\"] 中各词出现次数并输出字典。",
+        "hint": "每次使用 counts.get(word,0)+1。",
+        "solution": "counts={}\nfor word in ['py','git','py']:\n counts[word]=counts.get(word,0)+1\nprint(counts)",
+        "expected": "{'py': 2, 'git': 1}",
+        "starter": "# 在这里完成任务\n"
+      }
+    ],
+    "stage": "基础入门"
+  },
+  {
+    "id": "functions",
+    "title": "函数",
+    "symbol": "function",
+    "summary": "把一段逻辑变成可以复用的工具。",
+    "body": "def 用来定义函数，括号中写参数，函数体需要缩进。return 把结果交给调用者；print 只负责输出。\n\n先定义函数，再通过函数名和括号调用它。\n\n学习顺序：先预测示例输出，再运行验证，最后修改一个值观察变化。遇到报错时先看中文提示和行号。章节练习提供提示与参考答案，先自己完成，再比较实现。",
+    "example": "def greet(name):\n    return \"你好，\" + name\n\nprint(greet(\"Python\"))\n",
+    "exercises": [
+      {
+        "id": "functions-1",
+        "title": "两数之和",
+        "prompt": "定义 add(a, b) 返回两数之和，调用 add(3, 4) 并输出结果。",
+        "starter": "def add(a, b):\n    pass\n\nprint(add(3, 4))\n",
+        "expected": "7",
+        "hint": "函数体写 return a + b。",
+        "solution": "def add(a, b):\n    return a + b\nprint(add(3, 4))"
+      },
+      {
+        "id": "functions-2",
+        "title": "计算平方",
+        "prompt": "定义 square(n) 返回平方，输出 square(6)。",
+        "starter": "def square(n):\n    pass\n\nprint(square(6))\n",
+        "expected": "36",
+        "hint": "n * n 就是 n 的平方。",
+        "solution": "def square(n):\n    return n * n\nprint(square(6))"
+      },
+      {
+        "id": "functions-3",
+        "title": "函数与返回值",
+        "prompt": "定义 square(n) 返回平方，用 print 输出 square(6)。",
+        "hint": "定义函数不会自动调用；return 不会自动打印。",
+        "solution": "def square(n):\n return n*n\nprint(square(6))",
+        "expected": "36",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "functions-4",
+        "title": "提前返回",
+        "prompt": "定义 is_positive(n) 返回是否大于0，依次打印0和5的判断结果。",
+        "hint": "函数可以直接返回布尔表达式。",
+        "solution": "def is_positive(n):\n return n>0\nprint(is_positive(0),is_positive(5))",
+        "expected": "False True",
+        "starter": "# 在这里完成任务\n"
+      }
+    ],
+    "stage": "基础入门"
+  },
+  {
+    "id": "string-tools",
+    "title": "字符串处理",
+    "symbol": "textformat",
+    "summary": "清理、拆分、替换与拼接文本。",
+    "body": "字符串是不可变对象，strip、replace 等方法会返回新字符串。split 把文本拆成列表，join 把字符串列表拼成文本。大小写转换常用于不区分大小写的搜索。注意空白和大小写是否属于题目的有效内容。",
+    "example": "text='  Python,Git  '\nwords=text.strip().lower().split(',')\nprint(' / '.join(words))",
+    "stage": "基础入门",
+    "exercises": [
+      {
+        "id": "string-tools-1",
+        "title": "清理空格",
+        "prompt": "去掉 \"  hello  \" 两侧空格并输出。",
+        "hint": "strip 只移除两端空白。",
+        "solution": "print('  hello  '.strip())",
+        "expected": "hello",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "string-tools-2",
+        "title": "拆分与拼接",
+        "prompt": "把 \"red,blue,green\" 中逗号换成竖线并输出。",
+        "hint": "split 后用 join 拼接。",
+        "solution": "print('|'.join('red,blue,green'.split(',')))",
+        "expected": "red|blue|green",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "string-tools-3",
+        "title": "替换文本",
+        "prompt": "把 \"I like Java\" 中 Java 替换为 Python 并输出。",
+        "hint": "replace 返回新字符串。",
+        "solution": "print('I like Java'.replace('Java','Python'))",
+        "expected": "I like Python",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "string-tools-4",
+        "title": "忽略大小写",
+        "prompt": "判断 \"PyThOn\" 转为小写后是否等于 \"python\"，输出布尔值。",
+        "hint": "字符串比较区分大小写，先 lower。",
+        "solution": "print('PyThOn'.lower()=='python')",
+        "expected": "True",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "slices",
+    "title": "索引与切片",
+    "symbol": "scissors",
+    "summary": "从字符串和列表中取出需要的部分。",
+    "body": "索引从0开始，-1代表最后一个元素。切片 [start:stop:step] 不包含 stop，可以省略边界。切片越界通常返回可用部分，单个索引越界会触发 IndexError。[::-1] 可以得到反向副本。",
+    "example": "values=[10,20,30,40,50]\nprint(values[1:4])\nprint(values[::-1])",
+    "stage": "基础入门",
+    "exercises": [
+      {
+        "id": "slices-1",
+        "title": "取中间部分",
+        "prompt": "对 \"Python\" 取索引1到3的字符并输出。",
+        "hint": "切片结束位置写4。",
+        "solution": "print('Python'[1:4])",
+        "expected": "yth",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "slices-2",
+        "title": "反转文本",
+        "prompt": "反转 \"abcde\" 并输出。",
+        "hint": "使用步长 -1。",
+        "solution": "print('abcde'[::-1])",
+        "expected": "edcba",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "slices-3",
+        "title": "隔项取值",
+        "prompt": "从列表 [0,1,2,3,4,5] 取偶数索引处元素并输出列表。",
+        "hint": "步长设置为2。",
+        "solution": "print([0,1,2,3,4,5][::2])",
+        "expected": "[0, 2, 4]",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "slices-4",
+        "title": "最后两项",
+        "prompt": "输出 [10,20,30,40] 的最后两项。",
+        "hint": "起点可以使用负数。",
+        "solution": "print([10,20,30,40][-2:])",
+        "expected": "[30, 40]",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "tuples-sets",
+    "title": "元组与集合",
+    "symbol": "square.stack",
+    "summary": "不可变记录、去重和集合运算。",
+    "body": "元组适合固定结构，能一次拆包给多个变量。只有一个元素的元组需要逗号。集合保存不重复元素，集合本身没有稳定顺序；展示结果时可以 sorted。交集用 &，并集用 |，差集用 -。",
+    "example": "point=(3,4)\nx,y=point\nprint(x+y)\nprint(sorted(set([2,1,2])))",
+    "stage": "基础入门",
+    "exercises": [
+      {
+        "id": "tuples-sets-1",
+        "title": "坐标拆包",
+        "prompt": "将元组 (4,7) 拆包为 x,y，输出两者乘积。",
+        "hint": "左侧变量个数应与元素数一致。",
+        "solution": "x,y=(4,7)\nprint(x*y)",
+        "expected": "28",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "tuples-sets-2",
+        "title": "去重排序",
+        "prompt": "把 [3,1,3,2,1] 去重后升序输出。",
+        "hint": "set 去重，sorted 返回列表。",
+        "solution": "print(sorted(set([3,1,3,2,1])))",
+        "expected": "[1, 2, 3]",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "tuples-sets-3",
+        "title": "共同元素",
+        "prompt": "输出集合 {1,2,3} 与 {2,3,4} 的交集，按升序列表显示。",
+        "hint": "先 & 再 sorted。",
+        "solution": "print(sorted({1,2,3}&{2,3,4}))",
+        "expected": "[2, 3]",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "tuples-sets-4",
+        "title": "独有元素",
+        "prompt": "输出 {1,2,3} 中不属于 {2,4} 的元素，按升序显示。",
+        "hint": "差集的左右顺序有意义。",
+        "solution": "print(sorted({1,2,3}-{2,4}))",
+        "expected": "[1, 3]",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "comprehensions",
+    "title": "推导式",
+    "symbol": "list.bullet.indent",
+    "summary": "把筛选与转换写成清楚的表达式。",
+    "body": "列表推导式 [表达式 for 元素 in 可迭代对象 if 条件] 将循环产生的值收集成列表。字典推导式用 {键:值 for ...}。复杂分支应保留普通循环，避免过度嵌套。推导式适合生成数据，不适合只调用 print。",
+    "example": "print([n*n for n in range(5) if n%2==0])",
+    "stage": "基础入门",
+    "exercises": [
+      {
+        "id": "comprehensions-1",
+        "title": "平方列表",
+        "prompt": "输出1到4的平方列表。",
+        "hint": "range(1,5) 不含5。",
+        "solution": "print([n*n for n in range(1,5)])",
+        "expected": "[1, 4, 9, 16]",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "comprehensions-2",
+        "title": "筛选偶数",
+        "prompt": "从 [1,2,3,4,5,6] 筛选偶数并输出列表。",
+        "hint": "在推导式结尾添加 if 条件。",
+        "solution": "print([n for n in [1,2,3,4,5,6] if n%2==0])",
+        "expected": "[2, 4, 6]",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "comprehensions-3",
+        "title": "字典推导",
+        "prompt": "创建1到3映射到各自平方的字典并输出。",
+        "hint": "字典的表达式部分写 n:n*n。",
+        "solution": "print({n:n*n for n in range(1,4)})",
+        "expected": "{1: 1, 2: 4, 3: 9}",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "comprehensions-4",
+        "title": "清理名单",
+        "prompt": "把 [\" alice \",\" bob \"] 两端去空格并转为首字母大写，输出列表。",
+        "hint": "每个字符串依次 strip 和 title。",
+        "solution": "print([name.strip().title() for name in [' alice ',' bob ']])",
+        "expected": "['Alice', 'Bob']",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "function-arguments",
+    "title": "函数参数",
+    "symbol": "slider.horizontal.3",
+    "summary": "默认值、关键字参数和可变参数。",
+    "body": "参数是函数接收输入的名字。调用时可按位置或按关键字传值。默认参数让某些输入可省略，*args 收集多个位置参数，**kwargs 收集关键字参数。不要用可变列表作为默认值：可用 None 后在函数内新建。",
+    "example": "def greet(name, prefix=\"你好\"):\n return f\"{prefix}，{name}\"\nprint(greet(\"小明\",prefix=\"早上好\"))",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "function-arguments-1",
+        "title": "默认问候",
+        "prompt": "定义 greet(name=\"同学\") 返回 \"你好，\"+name，打印不传参的结果。",
+        "hint": "默认值写在定义的括号中。",
+        "solution": "def greet(name='同学'):\n return '你好，'+name\nprint(greet())",
+        "expected": "你好，同学",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "function-arguments-2",
+        "title": "关键字调用",
+        "prompt": "定义 rectangle(width,height) 返回面积，用 height=3,width=5 调用并打印。",
+        "hint": "关键字参数允许改变书写顺序。",
+        "solution": "def rectangle(width,height):\n return width*height\nprint(rectangle(height=3,width=5))",
+        "expected": "15",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "function-arguments-3",
+        "title": "可变参数求和",
+        "prompt": "定义 total(*numbers) 并打印 total(2,4,6)。",
+        "hint": "numbers 是接收所有位置参数的元组。",
+        "solution": "def total(*numbers):\n return sum(numbers)\nprint(total(2,4,6))",
+        "expected": "12",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "function-arguments-4",
+        "title": "安全默认列表",
+        "prompt": "定义 append_item(item,items=None) 每次未传列表时新建列表，分别调用1和2并打印。",
+        "hint": "在函数内 if items is None 时创建 []。",
+        "solution": "def append_item(item,items=None):\n if items is None:\n  items=[]\n items.append(item)\n return items\nprint(append_item(1))\nprint(append_item(2))",
+        "expected": "[1]\n[2]",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "scope",
+    "title": "作用域与纯函数",
+    "symbol": "scope",
+    "summary": "区分局部变量、外部变量和返回结果。",
+    "body": "函数内赋值通常创建局部变量，不会自动更新同名外部变量。优先通过参数传入、return 返回，减少隐藏的全局状态。闭包可以保留外层函数的参数；lambda 是只有一个表达式的匿名函数，常用于排序键。",
+    "example": "value=10\ndef increase(value):\n return value+1\nprint(increase(value))\nprint(value)",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "scope-1",
+        "title": "局部变量",
+        "prompt": "外部 x=10，函数 demo 内 x=3 并返回x，依次打印函数结果和外部x。",
+        "hint": "相同名字可以位于不同作用域。",
+        "solution": "x=10\ndef demo():\n x=3\n return x\nprint(demo(),x)",
+        "expected": "3 10",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "scope-2",
+        "title": "通过返回值更新",
+        "prompt": "定义 add_score(score,points) 返回新分数，将10增加5后打印。",
+        "hint": "赋值接收函数的返回值。",
+        "solution": "def add_score(score,points):\n return score+points\nscore=10\nscore=add_score(score,5)\nprint(score)",
+        "expected": "15",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "scope-3",
+        "title": "闭包倍增器",
+        "prompt": "定义 make_multiplier(factor) 返回一个乘以factor的函数，用3创建并计算4。",
+        "hint": "内层函数保留外层 factor。",
+        "solution": "def make_multiplier(factor):\n def multiply(n):\n  return n*factor\n return multiply\nprint(make_multiplier(3)(4))",
+        "expected": "12",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "scope-4",
+        "title": "按长度排序",
+        "prompt": "将 [\"pear\",\"a\",\"cat\"] 按字符串长度升序排列并输出。",
+        "hint": "sorted 的 key 可以传 len。",
+        "solution": "print(sorted(['pear','a','cat'],key=len))",
+        "expected": "['a', 'cat', 'pear']",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "exceptions",
+    "title": "异常与调试",
+    "symbol": "exclamationmark.triangle",
+    "summary": "理解报错、捕获预期异常并保留线索。",
+    "body": "try 中出错时跳到匹配的 except。只捕获能够处理的异常类型，不要用裸 except 隐藏所有错误。else 在没有异常时运行，finally 无论是否出错都会执行。用 raise 主动拒绝无效输入。先读异常类型、行号和中文提示，再修改代码。",
+    "example": "try:\n number=int('oops')\nexcept ValueError:\n print('请输入整数')",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "exceptions-1",
+        "title": "转换失败",
+        "prompt": "尝试 int(\"abc\")，捕获 ValueError 并输出不是整数。",
+        "hint": "把可能失败的转换放进 try。",
+        "solution": "try:\n int('abc')\nexcept ValueError:\n print('不是整数')",
+        "expected": "不是整数",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "exceptions-2",
+        "title": "安全除法",
+        "prompt": "尝试计算10/0，捕获 ZeroDivisionError 并输出除数不能为零。",
+        "hint": "使用正确的异常类型。",
+        "solution": "try:\n print(10/0)\nexcept ZeroDivisionError:\n print('除数不能为零')",
+        "expected": "除数不能为零",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "exceptions-3",
+        "title": "主动校验",
+        "prompt": "函数 check_age(age) 在负数时抛 ValueError；调用-1并捕获后输出年龄无效。",
+        "hint": "raise ValueError 可以带说明。",
+        "solution": "def check_age(age):\n if age<0:\n  raise ValueError('年龄无效')\ntry:\n check_age(-1)\nexcept ValueError as error:\n print(error)",
+        "expected": "年龄无效",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "exceptions-4",
+        "title": "清理步骤",
+        "prompt": "在 try 中输出工作，在 finally 中输出清理。",
+        "hint": "finally 总会执行。",
+        "solution": "try:\n print('工作')\nfinally:\n print('清理')",
+        "expected": "工作\n清理",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "files",
+    "title": "文本文件与上下文",
+    "symbol": "doc.text",
+    "summary": "用 with 安全地读写 UTF-8 文本。",
+    "body": "open 的 r 模式读取，w 模式覆盖写入，a 模式追加。对学习资料先用副本，避免覆盖原文件。with 在退出代码块时关闭文件。相对路径以项目根目录为基准，多文件项目可同时导入资源。示例用内存文本流演示接口，真实项目将 StringIO 换成 open(path, encoding=\"utf-8\")。",
+    "example": "from io import StringIO\nwith StringIO(\"第一行\\n第二行\") as file:\n print(file.readline().strip())",
+    "stage": "项目实践",
+    "exercises": [
+      {
+        "id": "files-1",
+        "title": "读取文本流",
+        "prompt": "使用 StringIO 读取 \"你好，Python\" 并输出。",
+        "hint": "read 返回剩余的全部文本。",
+        "solution": "from io import StringIO\nwith StringIO('你好，Python') as file:\n print(file.read())",
+        "expected": "你好，Python",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "files-2",
+        "title": "逐行计数",
+        "prompt": "用 StringIO 统计 \"a\\nb\\nc\" 的行数并输出。",
+        "hint": "遍历文本流，每次得到一行。",
+        "solution": "from io import StringIO\nwith StringIO('a\\nb\\nc') as file:\n print(sum(1 for line in file))",
+        "expected": "3",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "files-3",
+        "title": "写入与定位",
+        "prompt": "向空 StringIO 写入 hello，seek(0) 回到开头，读取并输出。",
+        "hint": "写入后游标在末尾。",
+        "solution": "from io import StringIO\nwith StringIO() as file:\n file.write('hello')\n file.seek(0)\n print(file.read())",
+        "expected": "hello",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "files-4",
+        "title": "忽略空行",
+        "prompt": "从 \"a\\n\\nb\\n\" 中读取非空行，输出清理后的列表。",
+        "hint": "对每行 strip，再过滤空字符串。",
+        "solution": "from io import StringIO\nwith StringIO('a\\n\\nb\\n') as file:\n print([line.strip() for line in file if line.strip()])",
+        "expected": "['a', 'b']",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "paths",
+    "title": "路径与多文件项目",
+    "symbol": "folder",
+    "summary": "用 pathlib 组合路径并组织模块资源。",
+    "body": "Path 使用 / 拼接路径，不要手动拼接斜杠。name 是文件名，stem 去掉最后扩展名，suffix 是扩展名，parent 是上级路径。__file__ 表示脚本文件位置，Path(__file__).parent 可定位同目录资源。项目中 import helper 导入 helper.py；不要让文件名与 json、math 等标准库重名。",
+    "example": "from pathlib import Path\np=Path('tools')/'helper.py'\nprint(p.name,p.suffix)",
+    "stage": "项目实践",
+    "exercises": [
+      {
+        "id": "paths-1",
+        "title": "提取文件名",
+        "prompt": "用 Path 从 \"tools/helper.py\" 取出文件名并打印。",
+        "hint": "访问 name 属性。",
+        "solution": "from pathlib import Path\nprint(Path('tools/helper.py').name)",
+        "expected": "helper.py",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "paths-2",
+        "title": "更换扩展名",
+        "prompt": "将 Path(\"report.txt\") 的扩展名改为 .json，输出文件名。",
+        "hint": "使用 with_suffix。",
+        "solution": "from pathlib import Path\nprint(Path('report.txt').with_suffix('.json').name)",
+        "expected": "report.json",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "paths-3",
+        "title": "无扩展名名称",
+        "prompt": "输出 Path(\"lesson.py\").stem。",
+        "hint": "stem 不含最后一个扩展名。",
+        "solution": "from pathlib import Path\nprint(Path('lesson.py').stem)",
+        "expected": "lesson",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "paths-4",
+        "title": "拼接路径",
+        "prompt": "将 data 与 score.csv 拼成路径，仅输出父目录名和文件名，中间为空格。",
+        "hint": "用 / 拼接后读取 parent.name 和 name。",
+        "solution": "from pathlib import Path\np=Path('data')/'score.csv'\nprint(p.parent.name,p.name)",
+        "expected": "data score.csv",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "modules",
+    "title": "模块与标准库",
+    "symbol": "shippingbox",
+    "summary": "导入和调用已有功能，理解入口。",
+    "body": "模块是可导入的 Python 文件。import math 后用 math.sqrt；from math import sqrt 后直接调用 sqrt。import 不等于复制代码，会初始化模块并缓存。if __name__ == \"__main__\" 只在直接运行时执行，适合放示例调用；可复用函数留在判断之外。",
+    "example": "import math\nprint(math.isqrt(81))\nif __name__==\"__main__\":\n print(\"这是运行入口\")",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "modules-1",
+        "title": "整数平方根",
+        "prompt": "使用 math.isqrt 计算81并输出。",
+        "hint": "isqrt 返回不超过平方根的整数。",
+        "solution": "import math\nprint(math.isqrt(81))",
+        "expected": "9",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "modules-2",
+        "title": "计数器",
+        "prompt": "使用 Counter 统计 banana 中字符次数，输出字符a的次数。",
+        "hint": "从 collections 导入 Counter。",
+        "solution": "from collections import Counter\nprint(Counter('banana')['a'])",
+        "expected": "3",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "modules-3",
+        "title": "平均数",
+        "prompt": "使用 statistics.mean 计算 [2,4,6] 并输出。",
+        "hint": "mean 返回算术平均数。",
+        "solution": "from statistics import mean\nprint(mean([2,4,6]))",
+        "expected": "4",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "modules-4",
+        "title": "入口判断",
+        "prompt": "定义 main() 输出开始学习，并在 __name__ 为 __main__ 时调用。",
+        "hint": "不要漏掉函数调用后的括号。",
+        "solution": "def main():\n print('开始学习')\nif __name__=='__main__':\n main()",
+        "expected": "开始学习",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "classes",
+    "title": "类与对象",
+    "symbol": "cube",
+    "summary": "把状态和操作放在一起。",
+    "body": "class 定义对象类型，__init__ 初始化实例。self 指向当前实例，self.name 是实例属性。方法和函数一样，需要调用才能执行。创建两个实例时应各自保存状态；不要把每个对象都需要独立维护的列表放在类属性上。",
+    "example": "class Student:\n def __init__(self,name):\n  self.name=name\n def greet(self):\n  return '你好，'+self.name\nprint(Student('小明').greet())",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "classes-1",
+        "title": "对象属性",
+        "prompt": "定义 Dog(name)，保存 name，创建名字为旺财的对象并打印 name。",
+        "hint": "__init__ 中使用 self.name=name。",
+        "solution": "class Dog:\n def __init__(self,name):\n  self.name=name\nprint(Dog('旺财').name)",
+        "expected": "旺财",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "classes-2",
+        "title": "计数对象",
+        "prompt": "定义 Counter，初始 value=0，increment 增加1；调用两次后打印 value。",
+        "hint": "每次方法调用修改 self.value。",
+        "solution": "class Counter:\n def __init__(self):\n  self.value=0\n def increment(self):\n  self.value+=1\nc=Counter()\nc.increment()\nc.increment()\nprint(c.value)",
+        "expected": "2",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "classes-3",
+        "title": "实例独立",
+        "prompt": "创建两个初始值为0的 Counter，只将第一个 value 改为5，打印两个值。",
+        "hint": "实例属性属于各自对象。",
+        "solution": "class Counter:\n def __init__(self):\n  self.value=0\na=Counter()\nb=Counter()\na.value=5\nprint(a.value,b.value)",
+        "expected": "5 0",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "classes-4",
+        "title": "面积方法",
+        "prompt": "定义 Rectangle(width,height)，area() 返回面积，打印 Rectangle(3,4).area()。",
+        "hint": "把构造参数保存为实例属性。",
+        "solution": "class Rectangle:\n def __init__(self,width,height):\n  self.width=width\n  self.height=height\n def area(self):\n  return self.width*self.height\nprint(Rectangle(3,4).area())",
+        "expected": "12",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "dataclasses",
+    "title": "数据类与类型标注",
+    "symbol": "rectangle.3.group",
+    "summary": "更清楚地表达数据结构和接口。",
+    "body": "类型标注帮助阅读与静态检查，不会自动阻止错误类型进入函数。list[int] 表示整数列表，str | None 表示字符串或空值。@dataclass 可以按字段生成构造函数、比较和文本表示；可变字段用 field(default_factory=list) 保证实例独立。",
+    "example": "from dataclasses import dataclass\n@dataclass\nclass Point:\n x:int\n y:int\nprint(Point(3,4))",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "dataclasses-1",
+        "title": "数据类构造",
+        "prompt": "定义 dataclass Point，整数 x,y，打印 Point(1,2)。",
+        "hint": "字段写成 x:int 与 y:int。",
+        "solution": "from dataclasses import dataclass\n@dataclass\nclass Point:\n x:int\n y:int\nprint(Point(1,2))",
+        "expected": "Point(x=1, y=2)",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "dataclasses-2",
+        "title": "数据类比较",
+        "prompt": "同样的 Point(1,2) 两个实例进行 == 比较并输出。",
+        "hint": "dataclass 默认按字段比较。",
+        "solution": "from dataclasses import dataclass\n@dataclass\nclass Point:\n x:int\n y:int\nprint(Point(1,2)==Point(1,2))",
+        "expected": "True",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "dataclasses-3",
+        "title": "标注函数",
+        "prompt": "定义 add(a:int,b:int)->int，返回和，打印 add(3,5)。",
+        "hint": "标注不改变加法逻辑。",
+        "solution": "def add(a:int,b:int)->int:\n return a+b\nprint(add(3,5))",
+        "expected": "8",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "dataclasses-4",
+        "title": "独立列表字段",
+        "prompt": "定义 Bag 数据类，items 使用 default_factory=list，给第一个实例添加1，打印第二个 items。",
+        "hint": "不要让多个实例共用可变默认列表。",
+        "solution": "from dataclasses import dataclass,field\n@dataclass\nclass Bag:\n items:list[int]=field(default_factory=list)\na=Bag()\nb=Bag()\na.items.append(1)\nprint(b.items)",
+        "expected": "[]",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "iterators",
+    "title": "迭代器与生成器",
+    "symbol": "arrow.trianglehead.2.clockwise",
+    "summary": "按需产生数据，配合 enumerate 和 zip。",
+    "body": "可迭代对象能用于 for。iter 获取迭代器，next 取下一个值；耗尽时可用 next(iterator, default) 返回默认值。yield 让函数成为生成器，调用时按需产生数据。生成器消费后不会自动重置，若需重复使用可创建新生成器或转成列表。",
+    "example": "def squares(limit):\n for n in range(limit):\n  yield n*n\nprint(list(squares(4)))",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "iterators-1",
+        "title": "依次读取",
+        "prompt": "从 iter([10,20]) 依次取两个值并打印。",
+        "hint": "连续调用 next 会推进迭代器。",
+        "solution": "it=iter([10,20])\nprint(next(it),next(it))",
+        "expected": "10 20",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "iterators-2",
+        "title": "安全耗尽",
+        "prompt": "对空列表迭代器调用 next，默认值为结束，打印结果。",
+        "hint": "next 的第二个参数处理耗尽。",
+        "solution": "print(next(iter([]),'结束'))",
+        "expected": "结束",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "iterators-3",
+        "title": "生成偶数",
+        "prompt": "定义 evens()，yield 0,2,4，转换为列表并输出。",
+        "hint": "可以在循环中 yield。",
+        "solution": "def evens():\n for n in range(0,6,2):\n  yield n\nprint(list(evens()))",
+        "expected": "[0, 2, 4]",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "iterators-4",
+        "title": "编号名单",
+        "prompt": "对 [\"甲\",\"乙\"] 用 enumerate 从1编号，每行输出 编号 名字。",
+        "hint": "enumerate 支持 start 参数。",
+        "solution": "for index,name in enumerate(['甲','乙'],start=1):\n print(index,name)",
+        "expected": "1 甲\n2 乙",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "json-csv",
+    "title": "JSON 与 CSV",
+    "symbol": "tablecells",
+    "summary": "在结构化文本和 Python 对象之间转换。",
+    "body": "json.loads 解析 JSON 字符串，json.dumps 生成 JSON；ensure_ascii=False 可以直接保留中文。JSON 的 true、null 对应 Python 的 True、None。CSV 应交给 csv 模块处理，不能只靠逗号拆分，因为字段本身也可能包含逗号。读写文件时使用 UTF-8，CSV 文件使用 newline=\"\"。",
+    "example": "import json\ndata=json.loads('{\"name\":\"小明\",\"score\":88}')\nprint(data[\"name\"],data[\"score\"])",
+    "stage": "项目实践",
+    "exercises": [
+      {
+        "id": "json-csv-1",
+        "title": "解析 JSON",
+        "prompt": "解析 {\"score\":88} 并输出 score。",
+        "hint": "先 json.loads，再按键读取。",
+        "solution": "import json\nprint(json.loads('{\"score\":88}')['score'])",
+        "expected": "88",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "json-csv-2",
+        "title": "保留中文",
+        "prompt": "把 {\"name\":\"小明\"} 转为 JSON 并输出，要求中文直接显示。",
+        "hint": "dumps 设置 ensure_ascii=False。",
+        "solution": "import json\nprint(json.dumps({'name':'小明'},ensure_ascii=False))",
+        "expected": "{\"name\": \"小明\"}",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "json-csv-3",
+        "title": "读取 CSV",
+        "prompt": "用 csv.reader 解析两行 a,b 和 1,2，打印第二行列表。",
+        "hint": "把字符串交给 StringIO。",
+        "solution": "import csv\nfrom io import StringIO\nrows=list(csv.reader(StringIO('a,b\\n1,2')))\nprint(rows[1])",
+        "expected": "['1', '2']",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "json-csv-4",
+        "title": "带逗号的字段",
+        "prompt": "解析 CSV 行 \"hello, world\",42，输出第一列。",
+        "hint": "csv.reader 能识别引号包围的字段。",
+        "solution": "import csv\nprint(next(csv.reader(['\"hello, world\",42']))[0])",
+        "expected": "hello, world",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "matching",
+    "title": "模式匹配",
+    "symbol": "point.3.connected.trianglepath.dotted",
+    "summary": "用 match / case 处理结构化数据。",
+    "body": "match 自 Python 3.10 起支持。case 可以匹配字面量、列表结构和字典字段，_ 表示其他情况。模式中的裸变量名是捕获变量，不能把它误认为已有常量。守卫 if 用来进一步限制匹配条件。顺序很重要，通用模式应放在最后。",
+    "example": "command=['add',3,4]\nmatch command:\n case ['add',a,b]:\n  print(a+b)\n case _:\n  print('未知命令')",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "matching-1",
+        "title": "匹配状态",
+        "prompt": "status=200，match 时200输出成功，404输出未找到，其余输出其他。",
+        "hint": "字面量直接写在 case 后。",
+        "solution": "status=200\nmatch status:\n case 200: print('成功')\n case 404: print('未找到')\n case _: print('其他')",
+        "expected": "成功",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "matching-2",
+        "title": "解包命令",
+        "prompt": "对 [\"sum\",2,5] 匹配列表并输出后两个数字的和。",
+        "hint": "模式 [\"sum\",a,b] 同时检查长度并捕获值。",
+        "solution": "match ['sum',2,5]:\n case ['sum',a,b]: print(a+b)",
+        "expected": "7",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "matching-3",
+        "title": "匹配字典",
+        "prompt": "从 {\"name\":\"小明\",\"age\":20} 匹配 name 并输出。",
+        "hint": "字典模式可以只指定需要的键。",
+        "solution": "match {'name':'小明','age':20}:\n case {'name':name}: print(name)",
+        "expected": "小明",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "matching-4",
+        "title": "守卫条件",
+        "prompt": "匹配数字5，若 n>0 输出正数，否则输出其他。",
+        "hint": "捕获变量后添加 if 守卫。",
+        "solution": "match 5:\n case n if n>0: print('正数')\n case _: print('其他')",
+        "expected": "正数",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "testing",
+    "title": "测试与边界条件",
+    "symbol": "checkmark.seal",
+    "summary": "验证正常输入、空值和边界。",
+    "body": "测试把输入、实际结果和预期结果联系起来。assert 在条件为假时抛出 AssertionError。unittest 可组织多条测试；函数题中的 return 返回值需要被调用和比较，不会自动 print。除了普通输入，还应考虑空列表、0、负数和重复值。测试通过只代表当前用例通过。",
+    "example": "def twice(n):\n return n*2\nassert twice(3)==6\nprint(\"测试通过\")",
+    "stage": "项目实践",
+    "exercises": [
+      {
+        "id": "testing-1",
+        "title": "验证平方",
+        "prompt": "定义 square(n)，用 assert 验证 square(0)==0 和 square(-3)==9，最后打印通过。",
+        "hint": "断言成功时没有输出，要主动 print。",
+        "solution": "def square(n):\n return n*n\nassert square(0)==0\nassert square(-3)==9\nprint('通过')",
+        "expected": "通过",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "testing-2",
+        "title": "空列表平均数",
+        "prompt": "定义 average(values)，空列表返回0，否则返回平均数，依次打印 [] 和 [2,4] 的结果。",
+        "hint": "先处理空值，避免除以0。",
+        "solution": "def average(values):\n if not values:\n  return 0\n return sum(values)/len(values)\nprint(average([]),average([2,4]))",
+        "expected": "0 3.0",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "testing-3",
+        "title": "错误实现会失败",
+        "prompt": "用 assert 检查2+2是否等于5，捕获 AssertionError 后打印发现错误。",
+        "hint": "测试应能识别错误实现。",
+        "solution": "try:\n assert 2+2==5\nexcept AssertionError:\n print('发现错误')",
+        "expected": "发现错误",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "testing-4",
+        "title": "查找边界",
+        "prompt": "定义 first_or_none(values)，非空返回第一项，否则返回 None，打印空列表和[9]的结果。",
+        "hint": "不要直接访问空列表下标0。",
+        "solution": "def first_or_none(values):\n return values[0] if values else None\nprint(first_or_none([]),first_or_none([9]))",
+        "expected": "None 9",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  },
+  {
+    "id": "modern-python",
+    "title": "现代 Python 与综合练习",
+    "symbol": "sparkles",
+    "summary": "合并字典、严格配对与字符串模板。",
+    "body": "现代 Python 可用 | 合并字典、用 match 处理结构、用 list[int] 表达容器类型。zip(...,strict=True) 在长度不一致时抛 ValueError。Python 3.14 起的 t-string 返回模板对象，不会像 f-string 一样直接得到最终字符串；学习新语法时要先确认解释器版本。当前应用解释器支持这些语法。",
+    "example": "left={\"name\":\"小明\",\"score\":60}\nright={\"score\":90}\nprint(left|right)\nprint(list(zip([1,2],[\"a\",\"b\"],strict=True)))",
+    "stage": "进阶语法",
+    "exercises": [
+      {
+        "id": "modern-python-1",
+        "title": "合并字典",
+        "prompt": "把 {\"a\":1,\"b\":2} 与 {\"b\":9,\"c\":3} 合并并输出，右侧值覆盖左侧。",
+        "hint": "使用字典并集运算 |。",
+        "solution": "print({'a':1,'b':2}|{'b':9,'c':3})",
+        "expected": "{'a': 1, 'b': 9, 'c': 3}",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "modern-python-2",
+        "title": "严格配对",
+        "prompt": "zip([1,2],[\"a\"],strict=True) 长度不一致，捕获 ValueError 后输出长度不一致。",
+        "hint": "zip 是惰性的，需要实际消费才能触发检查。",
+        "solution": "try:\n list(zip([1,2],['a'],strict=True))\nexcept ValueError:\n print('长度不一致')",
+        "expected": "长度不一致",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "modern-python-3",
+        "title": "字符串模板",
+        "prompt": "令 name=\"小明\"，用 t-string 创建模板 t\"你好，{name}\"，输出模板中的第一个插值值。",
+        "hint": "模板的 interpolations 是插值对象序列，其 value 保存原值。",
+        "solution": "name='小明'\nmessage=t'你好，{name}'\nprint(message.interpolations[0].value)",
+        "expected": "小明",
+        "starter": "# 在这里完成任务\n"
+      },
+      {
+        "id": "modern-python-4",
+        "title": "综合统计",
+        "prompt": "对 [60,90,75,40] 筛选至少60分，输出人数和平均分，平均分保留1位小数。",
+        "hint": "推导式筛选后，用 sum/len 计算平均数。",
+        "solution": "passed=[n for n in [60,90,75,40] if n>=60]\nprint(len(passed),f'{sum(passed)/len(passed):.1f}')",
+        "expected": "3 75.0",
+        "starter": "# 在这里完成任务\n"
+      }
+    ]
+  }
 ]

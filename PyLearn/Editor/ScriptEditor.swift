@@ -59,7 +59,7 @@ struct ScriptEditor: View {
                         Button("导出文件") { exporting = true }
                         if bankExercise != nil { Button("运行测试") { checkExercise() }.disabled(session.busy) }
                     } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("编辑器选项")
-                    if bankExercise != nil { Button("判题") { checkExercise() }.disabled(session.busy) }
+                    if bankExercise != nil { Button("运行测试") { checkExercise() }.disabled(session.busy) }
                     Button { run() } label: { Image(systemName: session.running ? "stop.fill" : "play.fill") }
                         .accessibilityLabel(session.running ? "停止运行" : "运行脚本").disabled(!isPython || session.working)
                 }
@@ -112,11 +112,13 @@ struct ScriptEditor: View {
                     Button(symbol) { editor.insert(symbol == "⇥" ? "    " : symbol) }.font(.system(.body, design: .monospaced)).frame(minWidth: 30, minHeight: 36)
                 }
                 Menu("模板") {
-                    Button("条件判断") { editor.insert("if 条件:\n    pass\nelse:\n    pass\n") }
-                    Button("for 循环") { editor.insert("for item in range(5):\n    print(item)\n") }
-                    Button("定义函数") { editor.insert("def function(value):\n    return value\n") }
-                    Button("异常处理") { editor.insert("try:\n    pass\nexcept Exception as error:\n    print(error)\n") }
-                    Button("读取文件") { editor.insert("with open('data.txt', encoding='utf-8') as file:\n    print(file.read())\n") }
+                    ForEach(CodeSnippet.categories, id: \.self) { category in
+                        Menu(category) {
+                            ForEach(CodeSnippet.all.filter { $0.category == category }) { snippet in
+                                Button(snippet.title) { editor.insert(snippet.source) }
+                            }
+                        }
+                    }
                 }
                 Button { editor.dismissKeyboard() } label: { Image(systemName: "keyboard.chevron.compact.down") }.accessibilityLabel("收起键盘")
             }.buttonStyle(.borderless).padding(.horizontal, 8)
@@ -135,7 +137,7 @@ struct ScriptEditor: View {
             if expanded {
                 ScrollViewReader { reader in
                     ScrollView {
-                        Text(gradeReport.isEmpty ? (session.output.isEmpty ? "运行结果会显示在这里" : session.output) : gradeReport)
+                        Text(gradeReport.isEmpty ? (session.output.isEmpty ? (session.documentID == documentID && session.resultStatus == "success" ? "运行完成，没有 print 输出。定义函数后需要调用，例如 print(函数名(参数))。" : "运行结果会显示在这里") : session.output) : gradeReport)
                             .font(.system(.caption, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                         Color.clear.frame(height: 1).id("end")
                     }.frame(maxHeight: 130).onChange(of: session.output) { _ in reader.scrollTo("end", anchor: .bottom) }
@@ -163,6 +165,7 @@ struct ScriptEditor: View {
         guard !bankExercise.id.hasPrefix("ai.") || bankExercise.verified == true else { grade = "先返回题目页验证参考答案，再进行判题。"; return }
         expanded = true; editor.dismissKeyboard()
         let snapshot = text
+        do { try store.flushOrThrow() } catch { fileError = "保存失败，已取消运行。请先导出代码。"; return }
         session.perform(["action":"grade","source":snapshot,"module":bankExercise.module,"tests":bankExercise.tests]) { response in
             gradeReport = response["report"] as? String ?? "无法判题"
             let success = response["status"] as? String == "success"
@@ -174,12 +177,12 @@ struct ScriptEditor: View {
         analysisTask?.cancel()
         guard !session.busy, isPython else { completions = []; return }
         let snapshot = text, cursor = selection
-        let prefix = (snapshot as NSString).substring(with: EditorText.prefixRange(in: snapshot, selection: cursor))
-        let before = (snapshot as NSString).substring(to: min(cursor.location, (snapshot as NSString).length))
-        let lines = before.components(separatedBy: "\n")
         analysisTask = Task {
             do { try await Task.sleep(nanoseconds: 300_000_000) } catch { return }
             guard !Task.isCancelled else { return }
+            let prefix = (snapshot as NSString).substring(with: EditorText.prefixRange(in: snapshot, selection: cursor))
+            let before = (snapshot as NSString).substring(to: min(cursor.location, (snapshot as NSString).length))
+            let lines = before.components(separatedBy: "\n")
             session.analyze(source: snapshot, prefix: prefix, line: lines.count, column: lines.last?.unicodeScalars.count ?? 0, directory: directory, path: path) { error, names, help in
                 guard text == snapshot && selection == cursor && !session.busy else { return }
                 syntaxProblem = error; completions = names; signature = help

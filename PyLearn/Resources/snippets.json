@@ -1,0 +1,182 @@
+[
+  {
+    "id": "snippet-1",
+    "title": "输出与格式化",
+    "category": "基础语法",
+    "source": "# 修改变量，观察格式化输出\nname = '小明'\nscore = 88.5\nprint(f'{name}：{score:.1f} 分')\n"
+  },
+  {
+    "id": "snippet-2",
+    "title": "读取用户输入",
+    "category": "基础语法",
+    "source": "# 输入会显示在控制台，输入后点击发送\nname = input('你叫什么名字？')\nprint('你好，' + name)\n"
+  },
+  {
+    "id": "snippet-3",
+    "title": "条件判断",
+    "category": "基础语法",
+    "source": "score = 80\nif score >= 90:\n    print('优秀')\nelif score >= 60:\n    print('及格')\nelse:\n    print('继续努力')\n"
+  },
+  {
+    "id": "snippet-4",
+    "title": "match / case",
+    "category": "基础语法",
+    "source": "command = ['add', 3, 4]\nmatch command:\n    case ['add', a, b]:\n        print(a + b)\n    case _:\n        print('未知命令')\n"
+  },
+  {
+    "id": "snippet-5",
+    "title": "变量交换",
+    "category": "基础语法",
+    "source": "a, b = 3, 8\na, b = b, a\nprint(a, b)\n"
+  },
+  {
+    "id": "snippet-6",
+    "title": "程序入口",
+    "category": "基础语法",
+    "source": "def main():\n    print('开始运行')\n\nif __name__ == '__main__':\n    main()\n"
+  },
+  {
+    "id": "snippet-7",
+    "title": "for 循环",
+    "category": "循环与容器",
+    "source": "for item in range(5):\n    print(item)\n"
+  },
+  {
+    "id": "snippet-8",
+    "title": "while 倒计时",
+    "category": "循环与容器",
+    "source": "remaining = 3\nwhile remaining > 0:\n    print(remaining)\n    remaining -= 1  # 每次更新，避免死循环\n"
+  },
+  {
+    "id": "snippet-9",
+    "title": "enumerate 编号",
+    "category": "循环与容器",
+    "source": "names = ['小明', '小红']\nfor index, name in enumerate(names, start=1):\n    print(index, name)\n"
+  },
+  {
+    "id": "snippet-10",
+    "title": "zip 配对",
+    "category": "循环与容器",
+    "source": "names = ['小明', '小红']\nscores = [80, 90]\nfor name, score in zip(names, scores, strict=True):\n    print(name, score)\n"
+  },
+  {
+    "id": "snippet-11",
+    "title": "列表推导式",
+    "category": "循环与容器",
+    "source": "numbers = [1, 2, 3, 4, 5]\nsquares = [n * n for n in numbers if n % 2 == 0]\nprint(squares)\n"
+  },
+  {
+    "id": "snippet-12",
+    "title": "字典统计",
+    "category": "循环与容器",
+    "source": "counts = {}\nfor word in ['python', 'git', 'python']:\n    counts[word] = counts.get(word, 0) + 1\nprint(counts)\n"
+  },
+  {
+    "id": "snippet-13",
+    "title": "定义并调用函数",
+    "category": "函数与类",
+    "source": "def square(number):\n    return number * number\n\n# return 不会打印；调用后用 print 显示\nprint(square(6))\n"
+  },
+  {
+    "id": "snippet-14",
+    "title": "默认与关键字参数",
+    "category": "函数与类",
+    "source": "def greet(name, prefix='你好'):\n    return f'{prefix}，{name}'\n\nprint(greet('小明', prefix='早上好'))\n"
+  },
+  {
+    "id": "snippet-15",
+    "title": "可变参数",
+    "category": "函数与类",
+    "source": "def total(*numbers):\n    return sum(numbers)\n\nprint(total(1, 2, 3))\n"
+  },
+  {
+    "id": "snippet-16",
+    "title": "lambda 排序",
+    "category": "函数与类",
+    "source": "students = [('小明', 80), ('小红', 95)]\nranked = sorted(students, key=lambda student: student[1], reverse=True)\nprint(ranked)\n"
+  },
+  {
+    "id": "snippet-17",
+    "title": "类与方法",
+    "category": "函数与类",
+    "source": "class Counter:\n    def __init__(self):\n        self.value = 0\n\n    def increment(self):\n        self.value += 1\n        return self.value\n\ncounter = Counter()\nprint(counter.increment())\n"
+  },
+  {
+    "id": "snippet-18",
+    "title": "dataclass 数据类",
+    "category": "函数与类",
+    "source": "from dataclasses import dataclass\n\n@dataclass\nclass Student:\n    name: str\n    score: int = 0\n\nprint(Student('小明', 88))\n"
+  },
+  {
+    "id": "snippet-19",
+    "title": "读取 UTF-8 文本",
+    "category": "文件与数据",
+    "source": "# 先把 data.txt 导入到项目根目录\ntry:\n    with open('data.txt', encoding='utf-8') as file:\n        print(file.read())\nexcept FileNotFoundError:\n    print('请先导入 data.txt，或修改文件路径')\n"
+  },
+  {
+    "id": "snippet-20",
+    "title": "安全写入文本",
+    "category": "文件与数据",
+    "source": "# x 模式只创建新文件，避免覆盖已有内容\ntry:\n    with open('notes.txt', 'x', encoding='utf-8') as file:\n        file.write('你好，Python！\\n')\n    print('已创建 notes.txt')\nexcept FileExistsError:\n    print('文件已存在，请修改名称后重试')\n"
+  },
+  {
+    "id": "snippet-21",
+    "title": "读取 JSON",
+    "category": "文件与数据",
+    "source": "import json\n\ntext = '{\"name\":\"小明\",\"score\":88}'\ndata = json.loads(text)\nprint(data['name'], data['score'])\n"
+  },
+  {
+    "id": "snippet-22",
+    "title": "生成 JSON",
+    "category": "文件与数据",
+    "source": "import json\n\ndata = {'name': '小明', 'score': 88}\ntext = json.dumps(data, ensure_ascii=False, indent=2)\nprint(text)\n"
+  },
+  {
+    "id": "snippet-23",
+    "title": "读取 CSV",
+    "category": "文件与数据",
+    "source": "import csv\nfrom io import StringIO\n\ntext = 'name,score\\n小明,88\\n小红,95'\nfor row in csv.DictReader(StringIO(text)):\n    print(row['name'], int(row['score']))\n"
+  },
+  {
+    "id": "snippet-24",
+    "title": "pathlib 文件路径",
+    "category": "文件与数据",
+    "source": "from pathlib import Path\n\n# 项目脚本可用 Path(__file__).parent 定位同目录\npath = Path('data') / 'scores.csv'\nprint('文件名：', path.name)\nprint('扩展名：', path.suffix)\n"
+  },
+  {
+    "id": "snippet-25",
+    "title": "异常处理",
+    "category": "实用工具",
+    "source": "text = '42'\ntry:\n    number = int(text)\nexcept ValueError:\n    print('请输入有效整数')\nelse:\n    print(number * 2)\n"
+  },
+  {
+    "id": "snippet-26",
+    "title": "Counter 计数",
+    "category": "实用工具",
+    "source": "from collections import Counter\n\ncounts = Counter('banana')\nfor character, count in sorted(counts.items()):\n    print(character, count)\n"
+  },
+  {
+    "id": "snippet-27",
+    "title": "正则提取数字",
+    "category": "实用工具",
+    "source": "import re\n\ntext = '订单12，数量3，总价99'\nnumbers = re.findall(r'\\d+', text)\nprint(numbers)\n"
+  },
+  {
+    "id": "snippet-28",
+    "title": "日期计算",
+    "category": "实用工具",
+    "source": "from datetime import date, timedelta\n\ntoday = date.today()\nprint('今天：', today.isoformat())\nprint('七天后：', (today + timedelta(days=7)).isoformat())\n"
+  },
+  {
+    "id": "snippet-29",
+    "title": "unittest 函数测试",
+    "category": "实用工具",
+    "source": "import unittest\n\ndef twice(number):\n    return number * 2\n\nclass TwiceTests(unittest.TestCase):\n    def test_values(self):\n        self.assertEqual(twice(3), 6)\n        self.assertEqual(twice(0), 0)\n\nsuite = unittest.defaultTestLoader.loadTestsFromTestCase(TwiceTests)\nunittest.TextTestRunner(verbosity=2).run(suite)\n"
+  },
+  {
+    "id": "snippet-30",
+    "title": "async / await",
+    "category": "实用工具",
+    "source": "import asyncio\n\nasync def greet(name):\n    await asyncio.sleep(0)\n    return '你好，' + name\n\nasync def main():\n    result = await greet('小明')\n    print(result)\n\nasyncio.run(main())\n"
+  }
+]

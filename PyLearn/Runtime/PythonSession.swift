@@ -28,6 +28,7 @@ final class PythonSession: ObservableObject {
     @Published private(set) var working = false
     var busy: Bool { running || working }
     private var analyzing = false
+    private var pendingAnalysis: (() -> Void)?
     private(set) var documentID: UUID?
     private(set) var executedSource = ""
     private let runtime = PLPythonRuntime.shared()
@@ -39,6 +40,7 @@ final class PythonSession: ObservableObject {
 
     func run(source: String, documentID: UUID, directory: String? = nil, path: String? = nil) {
         guard !busy else { return }
+        pendingAnalysis = nil
         running = true
         output = ""
         problem = nil
@@ -69,6 +71,7 @@ final class PythonSession: ObservableObject {
     func perform(_ payload: [String: Any], completion: @escaping ([String: Any]) -> Void) {
         guard !busy, let data = try? JSONSerialization.data(withJSONObject: payload), let json = String(data: data, encoding: .utf8) else { return }
         working = true
+        pendingAnalysis = nil
         runtime.performRequest(json) { [weak self] response in
             self?.working = false
             completion((try? JSONSerialization.jsonObject(with: Data(response.utf8)) as? [String: Any]) ?? ["status":"error", "report":"无法读取运行结果"])
@@ -76,7 +79,11 @@ final class PythonSession: ObservableObject {
     }
 
     func analyze(source: String, prefix: String, line: Int, column: Int, directory: String? = nil, path: String? = nil, completion: @escaping (PythonProblem?, [String], String) -> Void) {
-        guard !busy, !analyzing else { return }
+        guard !busy else { return }
+        if analyzing {
+            pendingAnalysis = { [weak self] in self?.analyze(source: source, prefix: prefix, line: line, column: column, directory: directory, path: path, completion: completion) }
+            return
+        }
         analyzing = true
         var extra: [String: Any] = ["line":line, "column":column]
         if let directory { extra["directory"] = directory }
@@ -84,6 +91,9 @@ final class PythonSession: ObservableObject {
         request(action: "analyze", source: source, prefix: prefix, extra: extra) { [weak self] result in
             self?.analyzing = false
             completion(result.error, result.completions ?? [], result.signature ?? "")
+            let pending = self?.pendingAnalysis
+            self?.pendingAnalysis = nil
+            if self?.busy == false { pending?() }
         }
     }
 

@@ -9,25 +9,27 @@ struct LearningView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("每天写一点，\n让 Python 跑起来。")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
-                        Text("从第一行输出，到独立写出函数。")
+                        Text("从第一行输出，到多文件项目、测试和现代 Python。")
                             .foregroundColor(.secondary)
-                        ProgressView(value: Double(store.lessons.flatMap(\.exercises).filter { store.completed.contains($0.id) }.count), total: 16).tint(.teal)
-                        Text("入门练习：已完成 \(store.lessons.flatMap(\.exercises).filter { store.completed.contains($0.id) }.count) / 16 道")
+                        ProgressView(value: Double(store.lessons.flatMap(\.exercises).filter { store.completed.contains($0.id) }.count), total: Double(max(1, store.lessons.flatMap(\.exercises).count))).tint(.teal)
+                        Text("\(store.lessons.count) 章 · 章节练习已完成 \(store.lessons.flatMap(\.exercises).filter { store.completed.contains($0.id) }.count) / \(store.lessons.flatMap(\.exercises).count) 道")
                             .font(.caption).foregroundColor(.secondary)
                     }.padding(.vertical, 12)
                 }
-                Section("Python 入门 · 8 个章节") {
-                    ForEach(Array(store.lessons.enumerated()), id: \.element.id) { index, lesson in
+                ForEach(["基础入门", "进阶语法", "项目实践"], id: \.self) { stage in
+                Section(stage) {
+                    ForEach(store.lessons.filter { ($0.stage ?? "基础入门") == stage }) { lesson in
                         NavigationLink { LessonDetail(lesson: lesson) } label: {
                             HStack(spacing: 14) {
                                 Image(systemName: lesson.symbol).font(.title3).foregroundColor(.teal).frame(width: 30)
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text("\(index + 1). \(lesson.title)").font(.headline)
+                                    Text(lesson.title).font(.headline)
                                     Text(lesson.summary).font(.caption).foregroundColor(.secondary)
                                 }
                             }.padding(.vertical, 7)
                         }
                     }
+                }
                 }
             }.navigationTitle("Python 学习")
         }
@@ -77,7 +79,7 @@ struct LegacyExercisesView: View {
                         }
                     }
                 }
-            }.navigationTitle("入门练习")
+            }.navigationTitle("章节练习")
     }
 }
 

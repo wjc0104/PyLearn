@@ -1,4 +1,4 @@
-import sys,tempfile,unittest
+import os,sys,tempfile,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'Vendor/PythonPackages'),str(ROOT/'PyLearn/Resources')]
@@ -6,6 +6,37 @@ import git_support
 from unittest.mock import patch
 from dulwich import porcelain
 class GitTests(unittest.TestCase):
+ def test_commit_records_same_size_edit_even_if_file_timestamp_is_preserved(self):
+  with tempfile.TemporaryDirectory() as d:
+   def call(op,**extra): return git_support.perform(dict(directory=d,operation=op,**extra))
+   call('init'); path=Path(d,'main.py');path.write_text('print(1)')
+   self.assertEqual(call('commit',message='one')['status'],'success')
+   saved=path.stat();path.write_text('print(2)');os.utime(path,ns=(saved.st_atime_ns,saved.st_mtime_ns))
+   self.assertEqual(call('commit',message='two')['status'],'success')
+   with git_support.Repo(d) as repo:
+    item=repo[repo[repo.head()].tree][b'main.py']
+    self.assertEqual(repo[item[1]].data,b'print(2)')
+
+ def test_phone_and_computer_can_exchange_edits_and_new_chinese_files(self):
+  with tempfile.TemporaryDirectory() as d:
+   remote=Path(d,'remote'); pc=Path(d,'computer'); phone=Path(d,'phone')
+   porcelain.init(str(remote),bare=True).close(); pc.mkdir()
+   def call(path,operation,**extra):
+    with patch.object(git_support,'_remote',return_value=str(remote)):
+     result=git_support.perform(dict(directory=str(path),operation=operation,remote='https://example.com/repo',**extra))
+    self.assertEqual(result['status'],'success',result)
+    return result
+   call(pc,'init'); Path(pc,'main.py').write_text('print(1)',encoding='utf8')
+   call(pc,'commit',message='initial'); call(pc,'push'); call(phone,'clone')
+   Path(phone,'main.py').write_text('print(2)',encoding='utf8')
+   Path(phone,'中文练习.py').write_text("print('手机新增')",encoding='utf8')
+   call(phone,'commit',message='phone edit and new script'); call(phone,'push'); call(pc,'pull')
+   self.assertEqual(Path(pc,'main.py').read_text(encoding='utf8'),'print(2)')
+   self.assertEqual(Path(pc,'中文练习.py').read_text(encoding='utf8'),"print('手机新增')")
+   Path(pc,'中文练习.py').write_text("print('电脑修改')",encoding='utf8')
+   call(pc,'commit',message='computer edit'); call(pc,'push'); call(phone,'pull')
+   self.assertEqual(Path(phone,'中文练习.py').read_text(encoding='utf8'),"print('电脑修改')")
+
  def test_pull_tracks_current_branch_instead_of_remote_default(self):
   with tempfile.TemporaryDirectory() as d:
    remote=Path(d,'remote');local=Path(d,'local');remote.mkdir()

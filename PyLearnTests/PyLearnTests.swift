@@ -3,6 +3,58 @@ import XCTest
 
 final class PyLearnTests: XCTestCase {
     @MainActor
+    func testModelMustRespondBeforeItCanReplaceCurrentSelection() async throws {
+        let suite = "PyLearn-tests-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let profiles = AIProfiles(defaults: defaults)
+        let original = AIProfile(name: "original", model: "old")
+        let candidate = AIProfile(name: "test", baseURL: "https://models.test.invalid/v1", model: "saved")
+        profiles.items = [original, candidate]; profiles.selected = original.id.uuidString
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ModelTestProtocol.self]
+        let transport = URLSession(configuration: configuration)
+        defer { transport.invalidateAndCancel() }
+        ModelTestProtocol.status = 403
+        do { try await profiles.useVerified(candidate, model: "unavailable", transport: transport); XCTFail("Unavailable model selected") } catch {}
+        XCTAssertEqual(profiles.active?.id, original.id)
+        XCTAssertEqual(profiles.items[1].model, "saved")
+        ModelTestProtocol.status = 200
+        try await profiles.useVerified(candidate, model: "working", transport: transport)
+        XCTAssertEqual(profiles.active?.model, "working")
+        XCTAssertEqual(AIProfiles(defaults: defaults).active?.model, "working")
+    }
+
+    @MainActor
+    func testGitCredentialsAreReusedPerHostWithoutCrossHostLeak() throws {
+        let host = UUID().uuidString.lowercased() + ".test.invalid"
+        let remote = "https://" + host + "/one.git"
+        defer {
+            try? SecretStore.save("", account: "git.token." + host)
+            UserDefaults.standard.removeObject(forKey: "git.username." + host)
+        }
+        try GitCredentials.save(remote, username: "fixture", token: "fixture-token")
+        XCTAssertEqual(GitCredentials.load("https://" + host + "/two.git").username, "fixture")
+        XCTAssertEqual(GitCredentials.load("https://" + host + "/two.git").token, "fixture-token")
+        XCTAssertTrue(GitCredentials.load("https://other.test.invalid/two.git").token.isEmpty)
+        XCTAssertThrowsError(try GitCredentials.save("http://" + host, username: "fixture", token: "fixture-token"))
+        try GitCredentials.save(remote, username: "fixture", token: "")
+        XCTAssertTrue(GitCredentials.load(remote).token.isEmpty)
+    }
+
+    @MainActor
+    func testLastCompletionRequestIsDeliveredWhenAnalysisIsInFlight() async {
+        let session = PythonSession()
+        let first = expectation(description: "First analysis")
+        let latest = expectation(description: "Latest analysis survives pending request")
+        session.analyze(source: "value='abc'\nvalue.lo", prefix: "lo", line: 2, column: 8) { _, _, _ in first.fulfill() }
+        session.analyze(source: "value='abc'\nvalue.up", prefix: "up", line: 2, column: 8) { _, names, _ in
+            XCTAssertTrue(names.contains("upper")); latest.fulfill()
+        }
+        await fulfillment(of: [first, latest], timeout: 30)
+    }
+
+    @MainActor
     func testFolderImportPreservesResourcesAndEntryAndDeletesPersistently() throws {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: base) }
@@ -169,4 +221,17 @@ final class PyLearnTests: XCTestCase {
         runtime.performRequest("{\"action\":\"run\",\"source\":\"print('菜单')\\nprint('1. 学习')\\nprint('2. 返回')\\ninput('请选择：')\"}") { _ in done.fulfill() }
         wait(for: [done], timeout: 30)
     }
+}
+
+private final class ModelTestProtocol: URLProtocol {
+    static var status = 200
+    override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "models.test.invalid" }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let response = HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: nil, headerFields: ["Content-Type":"application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("{\"choices\":[{\"message\":{\"content\":\"OK\"}}]}".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
 }

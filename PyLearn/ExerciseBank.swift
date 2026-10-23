@@ -101,6 +101,7 @@ struct BankSearchView: View {
     @State private var generating = false
     @State private var generated: BankExercise?
     @State private var error = ""
+    @State private var choosingModel = false
     private var results: [BankExercise] {
         let all: [BankExercise] = bank.custom + bank.exercises
         let words: [String] = query.lowercased().split(separator: " ").map(String.init)
@@ -132,6 +133,7 @@ struct BankSearchView: View {
         }
         .refreshable { await bank.refresh() }
         .sheet(item: $generated) { item in NavigationStack { BankExerciseDetail(exercise: item) } }
+        .sheet(isPresented: $choosingModel) { NavigationStack { AIModelPicker() } }
         .alert("AI 提示", isPresented: Binding(get: { !error.isEmpty }, set: { if !$0 { error = "" } })) {
             Button("知道了") { error = "" }
         } message: { Text(error) }
@@ -144,7 +146,14 @@ struct BankSearchView: View {
                 Text("入门").tag(1)
                 Text("进阶").tag(2)
             }.pickerStyle(.segmented)
-            NavigationLink("原有入门章节练习") { LegacyExercisesView() }
+            Button { choosingModel = true } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("切换 / 测试 AI 模型", systemImage: "arrow.triangle.2.circlepath")
+                    Text(profiles.active.map { $0.name + " · " + ($0.model.isEmpty ? "未选择模型" : $0.model) } ?? "尚未配置，点此添加服务")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+            }.disabled(generating)
+            NavigationLink("章节练习 · \(store.lessons.flatMap(\.exercises).count) 道") { LegacyExercisesView() }
             if !bank.message.isEmpty { Text(bank.message).font(.caption).foregroundColor(.secondary) }
         }
     }
@@ -208,16 +217,17 @@ struct BankExerciseDetail: View {
                 }
             }
             Section {
+                Text("这是函数题：return 返回结果，print 才会打印。可在编辑器中调用函数并 print，或点“运行测试”检查返回结果是否正确。").font(.caption).foregroundColor(.secondary)
                 Button("开始练习") { do { script = try store.openBankExercise(exercise) } catch { report = error.localizedDescription } }
                     .disabled(exercise.id.hasPrefix("ai.") && exercise.verified != true)
-                if exercise.id.hasPrefix("ai.") && exercise.verified != true { Text("先点击下方“验证参考答案”，通过后即可开始练习和判题。").font(.caption) }
+                if exercise.id.hasPrefix("ai.") && exercise.verified != true { Text("先点击下方“运行参考答案与测试”，通过后即可开始练习和判题。").font(.caption) }
                 DisclosureGroup("提示") { Text(exercise.hint) }
                 DisclosureGroup("参考答案") {
                     Text(exercise.solution).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                     Button("复制参考答案") { UIPasteboard.general.string = exercise.solution }
                 }
                 DisclosureGroup("测试用例") { Text(exercise.tests).font(.system(.caption2, design: .monospaced)).textSelection(.enabled) }
-                Button("验证参考答案") {
+                Button("运行参考答案与测试") {
                     session.perform(["action":"grade","source":exercise.solution,"module":exercise.module,"tests":exercise.tests]) { result in
                         let success = result["status"] as? String == "success"
                         report = (success ? "参考答案通过当前测试。\n" : "参考答案未通过，请勿据此判定你的代码错误。\n") + (result["report"] as? String ?? "")

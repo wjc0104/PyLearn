@@ -1,6 +1,39 @@
 import XCTest
 
 final class PyLearnUITests: XCTestCase {
+    func testProjectFilesAndImportAndModelEntryPoints() {
+        let app = XCUIApplication()
+        app.launch()
+        app.tabBars.buttons["代码"].tap()
+        app.buttons["新建项目"].tap()
+        XCTAssertTrue(app.buttons["打开运行入口"].waitForExistence(timeout: 5))
+        app.buttons["打开运行入口"].tap()
+        XCTAssertTrue(app.buttons["运行脚本"].waitForExistence(timeout: 5))
+        app.buttons["运行脚本"].tap()
+        XCTAssertTrue(app.staticTexts["运行完成"].waitForExistence(timeout: 20))
+        app.buttons["完成"].tap()
+        app.buttons["添加项目文件"].tap()
+        app.buttons["新建文件"].tap()
+        let name = app.alerts.textFields.firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.tap(); name.typeText("nested/sample.py")
+        app.alerts.buttons["创建"].tap()
+        XCTAssertTrue(app.navigationBars["sample.py"].waitForExistence(timeout: 5))
+        app.buttons["完成"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.buttons["导入整个文件夹"].waitForExistence(timeout: 5))
+        app.buttons["导入整个文件夹"].tap()
+        attach("folder-picker", app: app)
+        XCTAssertTrue(app.buttons["取消"].waitForExistence(timeout: 5) || app.buttons["Cancel"].exists)
+        let cancel = app.buttons["取消"].exists ? app.buttons["取消"] : app.buttons["Cancel"]
+        cancel.tap()
+        app.tabBars.buttons["练习"].tap()
+        app.buttons["切换 / 测试 AI 模型"].tap()
+        XCTAssertTrue(app.navigationBars["选择 AI 模型"].waitForExistence(timeout: 5))
+        attach("model-picker", app: app)
+        app.buttons["完成"].tap()
+    }
+
     func testLearningAndEditorScreens() {
         let app = XCUIApplication()
         app.launch()

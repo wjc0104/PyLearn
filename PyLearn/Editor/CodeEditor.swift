@@ -30,9 +30,10 @@ enum EditorText {
     static func prefixRange(in source: String, selection: NSRange) -> NSRange {
         let text = source as NSString
         let end = min(max(0, selection.location), text.length)
-        let before = text.substring(to: end)
-        let prefix = String(before.reversed().prefix { $0.isLetter || $0.isNumber || $0 == "_" }.reversed())
-        return NSRange(location: end - (prefix as NSString).length, length: (prefix as NSString).length)
+        let allowed = CharacterSet.alphanumerics.union(.nonBaseCharacters).union(CharacterSet(charactersIn: "_"))
+        let boundary = text.rangeOfCharacter(from: allowed.inverted, options: .backwards, range: NSRange(location: 0, length: end))
+        let start = boundary.location == NSNotFound ? 0 : NSMaxRange(boundary)
+        return NSRange(location: start, length: end - start)
     }
 
     static func lineRange(in source: String, line: Int) -> NSRange? {
@@ -100,7 +101,7 @@ struct CodeEditor: UIViewRepresentable {
             context.coordinator.appearanceKey = key
         }
         if let line = errorLine, let range = EditorText.lineRange(in: text, line: line) {
-            view.highlightedRanges = [HighlightedRange(range: range, color: UIColor.systemRed.withAlphaComponent(0.12))]
+            view.highlightedRanges = [HighlightedRange(id: "syntax-error", range: range, color: UIColor.systemRed.withAlphaComponent(0.12))]
         } else { view.highlightedRanges = [] }
         context.coordinator.updating = false
     }

@@ -19,6 +19,7 @@ struct Lesson: Codable, Identifiable {
     let body: String
     let example: String
     let exercises: [Exercise]
+    let stage: String?
 }
 
 struct ScriptDocument: Codable, Identifiable {
@@ -111,12 +112,12 @@ final class LearningStore: ObservableObject {
     }
 
     func importFile(_ url: URL) throws -> ScriptDocument {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        let data = try handle.read(upToCount: 524289) ?? Data()
-        return try importScript(name: url.lastPathComponent, data: data)
+        try readExternal(url) { readable in
+            let handle = try FileHandle(forReadingFrom: readable)
+            defer { try? handle.close() }
+            let data = try handle.read(upToCount: 524289) ?? Data()
+            return try importScript(name: url.lastPathComponent, data: data)
+        }
     }
 
     func update(_ id: UUID, source: String) {
@@ -166,6 +167,7 @@ final class LearningStore: ObservableObject {
     func failure(_ message: String) -> NSError { NSError(domain: "PyLearn", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
 
     func openProjectFile(_ project: ScriptProject, path: String) throws -> ScriptDocument {
+        try flushOrThrow()
         let url = try projectFile(project.id, path: path)
         let data = try Data(contentsOf: url)
         guard data.count <= 524288, let text = String(data: data, encoding: .utf8) else { throw failure("该文件为二进制、非 UTF-8 文本或超过 512 KiB。文件已保留，可由脚本读取。") }

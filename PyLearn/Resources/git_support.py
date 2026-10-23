@@ -40,6 +40,9 @@ def perform(payload):
             author = payload.get('author', 'PyLearn <pylearn@local>')
             if '\n' in author or '\r' in author:
                 raise ValueError('作者格式无效。')
+            # Explicitly hash tracked files; unchanged size/timestamps can hide rapid edits.
+            with Repo(path) as repo:
+                repo.get_worktree().stage(list(repo.open_index()), config=repo.get_config_stack())
             porcelain.add(path)
             sha = porcelain.commit(path, message=payload['message'].encode(), author=author.encode(),
                                    committer=author.encode(), no_verify=True, sign=False)
