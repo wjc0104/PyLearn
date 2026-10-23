@@ -152,7 +152,7 @@ struct BankSearchView: View {
                     Text(profiles.active.map { $0.name + " · " + ($0.model.isEmpty ? "未选择模型" : $0.model) } ?? "尚未配置，点此添加服务")
                         .font(.caption).foregroundColor(.secondary)
                 }
-            }.disabled(generating)
+            }.disabled(generating).accessibilityLabel("切换 / 测试 AI 模型")
             NavigationLink("章节练习 · \(store.lessons.flatMap(\.exercises).count) 道") { LegacyExercisesView() }
             if !bank.message.isEmpty { Text(bank.message).font(.caption).foregroundColor(.secondary) }
         }
