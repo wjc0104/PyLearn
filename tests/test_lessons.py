@@ -14,12 +14,12 @@ class LessonTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location('runtime', ROOT / 'PyLearn/Resources/runtime.py')
         runtime = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(runtime)
-        self.assertEqual(len(lessons), 8)
+        self.assertGreaterEqual(len(lessons), 24)
         ids = []
         for lesson in lessons:
             output = []
             self.assertEqual(runtime.execute(lesson['example'], output.append, lambda _: '', lambda: False)['status'], 'success')
-            self.assertEqual(len(lesson['exercises']), 2)
+            self.assertGreaterEqual(len(lesson['exercises']), 4)
             for exercise in lesson['exercises']:
                 with self.subTest(exercise=exercise['id']):
                     ids.append(exercise['id'])

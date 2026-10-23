@@ -32,6 +32,8 @@ jobs:
         run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
       - name: Portable regression tests
         run: |
+          swiftc -parse-as-library PyLearn/Store.swift PyLearn/Projects.swift tests/StorageRegression.swift -o /tmp/pylearn-storage-tests
+          /tmp/pylearn-storage-tests
           python3 scripts/prepare_python_packages.py
           python3 -m unittest discover -s tests -v
       - name: Build and verify IPA
