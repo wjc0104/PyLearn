@@ -58,8 +58,9 @@ struct AIModelPicker: View {
         }
     }
     private func fetchModels() {
-        guard let profile else { return }
         modelTask?.cancel()
+        loading = false
+        guard let profile else { return }
         loading = true
         modelTask = Task {
             do {

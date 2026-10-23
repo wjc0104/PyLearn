@@ -152,15 +152,16 @@ struct AIProfilesView: View {
     @State private var editing: AIProfile?
     @State private var testing = false
     @State private var message = ""
+    @State private var selectionTask: Task<Void, Never>?
     var body: some View {
         List {
             Section("当前出题配置") {
                 ForEach(profiles.items) { profile in
                     Button {
                         testing = true
-                        Task {
+                        selectionTask = Task {
                             do { try await profiles.useVerified(profile, model: profile.model); message = "本次请求成功，已切换。" }
-                            catch { message = "切换失败，继续使用原模型。\n" + error.localizedDescription }
+                            catch { if !Task.isCancelled { message = "切换失败，继续使用原模型。\n" + error.localizedDescription } }
                             testing = false
                         }
                     } label: { Label(profile.name, systemImage: profiles.active?.id == profile.id ? "checkmark.circle.fill" : "circle") }
@@ -183,6 +184,7 @@ struct AIProfilesView: View {
             if !message.isEmpty { Text(message).font(.caption).textSelection(.enabled) }
             Text("长按配置可编辑或删除。切换、保存配置、出题和翻译会调用服务；模型测试可能产生少量费用。").font(.caption).foregroundColor(.secondary)
         }.navigationTitle("AI 服务商").disabled(testing)
+            .onDisappear { selectionTask?.cancel(); testing = false }
             .sheet(item: $editing) { profile in NavigationStack { AIProfileEditor(profile: profile) } }
     }
 }

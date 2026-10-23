@@ -23,6 +23,10 @@ final class PyLearnTests: XCTestCase {
         try await profiles.useVerified(candidate, model: "working", transport: transport)
         XCTAssertEqual(profiles.active?.model, "working")
         XCTAssertEqual(AIProfiles(defaults: defaults).active?.model, "working")
+        let cancelled = Task { try await profiles.useVerified(candidate, model: "late-response", transport: transport) }
+        cancelled.cancel()
+        do { try await cancelled.value; XCTFail("Cancelled model switch was saved") } catch {}
+        XCTAssertEqual(profiles.active?.model, "working")
     }
 
     @MainActor
