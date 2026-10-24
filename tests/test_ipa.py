@@ -7,12 +7,21 @@ import unittest
 import zipfile
 
 SCRIPT = Path(__file__).parents[1] / 'scripts/inspect_ipa.py'
+APP_ID = 'TROLLTROLL.com.wjc0104.pylearn'
+APP_ENTITLEMENTS = {'application-identifier': APP_ID, 'com.apple.developer.team-identifier': 'TROLLTROLL', 'keychain-access-groups': [APP_ID]}
 
 
-def macho(cpu=0x0100000c, platform=2, minimum=(13, 0, 0)):
+def macho(cpu=0x0100000c, platform=2, minimum=(13, 0, 0), entitlements=None):
     version = minimum[0] << 16 | minimum[1] << 8 | minimum[2]
-    header = struct.pack('<8I', 0xfeedfacf, cpu, 0, 2, 1, 24, 0, 0)
-    return header + struct.pack('<6I', 0x32, 24, platform, version, 0, 0)
+    commands = struct.pack('<6I', 0x32, 24, platform, version, 0, 0)
+    signature = b''
+    if entitlements is not None:
+        payload = plistlib.dumps(entitlements)
+        entry = struct.pack('>II', 0xfade7171, 8 + len(payload)) + payload
+        signature = struct.pack('>III', 0xfade0cc0, 20 + len(entry), 1) + struct.pack('>II', 5, 20) + entry
+        commands += struct.pack('<4I', 0x1d, 16, 32 + 24 + 16, len(signature))
+    header = struct.pack('<8I', 0xfeedfacf, cpu, 0, 2, 2 if signature else 1, len(commands), 0, 0)
+    return header + commands + signature
 
 
 class IPATests(unittest.TestCase):
@@ -29,7 +38,7 @@ class IPATests(unittest.TestCase):
         with zipfile.ZipFile(self.path, 'w') as z:
             base = 'Payload/PyLearn.app/'
             z.writestr(base + 'Info.plist', plistlib.dumps({'CFBundleExecutable':'PyLearn', 'MinimumOSVersion':minimum, 'CFBundleIdentifier':'com.wjc0104.pylearn','CFBundleShortVersionString':'0.1.0'}))
-            z.writestr(base + 'PyLearn', main if main is not None else macho())
+            z.writestr(base + 'PyLearn', main if main is not None else macho(entitlements=APP_ENTITLEMENTS))
             z.writestr(base + 'runtime.py', '')
             z.writestr(base + 'lessons.json', '[]')
             z.writestr(base + 'bank.json', '{}')
@@ -38,6 +47,31 @@ class IPATests(unittest.TestCase):
             if python:
                 z.writestr(base + 'Frameworks/Python.framework/Python', framework if framework is not None else macho())
                 z.writestr(base + 'python/lib/python3.15/encodings/__init__.py', '')
+
+    def test_rejects_app_without_signed_document_picker_identity(self):
+        self.package(main=macho())
+        with self.assertRaisesRegex(ValueError, 'entitlement|identity|application-identifier'):
+            self.module.inspect_ipa(self.path)
+
+    def test_rejects_identity_for_a_different_app(self):
+        entitlement = dict(APP_ENTITLEMENTS, **{'application-identifier': 'TROLLTROLL.other.app'})
+        self.package(main=macho(entitlements=entitlement))
+        with self.assertRaisesRegex(ValueError, 'identity|application-identifier'):
+            self.module.inspect_ipa(self.path)
+
+    def test_rejects_missing_app_keychain_group(self):
+        entitlement = dict(APP_ENTITLEMENTS, **{'keychain-access-groups': []})
+        self.package(main=macho(entitlements=entitlement))
+        with self.assertRaisesRegex(ValueError, 'keychain'):
+            self.module.inspect_ipa(self.path)
+
+    def test_rejects_malformed_keychain_group_types(self):
+        for groups in [APP_ID, {APP_ID: True}]:
+            with self.subTest(groups=groups):
+                entitlement = dict(APP_ENTITLEMENTS, **{'keychain-access-groups': groups})
+                self.package(main=macho(entitlements=entitlement))
+                with self.assertRaisesRegex(ValueError, 'keychain'):
+                    self.module.inspect_ipa(self.path)
 
     def test_accepts_device_ipa_and_reports_hash(self):
         self.package()

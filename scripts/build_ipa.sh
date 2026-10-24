@@ -13,7 +13,7 @@ VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/I
 while IFS= read -r -d '' framework; do
   codesign --force --sign - --timestamp=none "$framework"
 done < <(find "$APP/Frameworks" -depth -type d -name '*.framework' -print0)
-codesign --force --sign - --timestamp=none "$APP"
+codesign --force --sign - --timestamp=none --entitlements config/Device.entitlements "$APP"
 codesign --verify --deep --strict "$APP"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT

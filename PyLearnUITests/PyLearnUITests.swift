@@ -129,7 +129,7 @@ final class PyLearnUITests: XCTestCase {
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["导入整个文件夹"].tap()
         attach("folder-picker", app: app)
-        let cancel = app.buttons.matching(NSPredicate(format: "label == %@ OR label == %@", "取消", "Cancel")).firstMatch
+        let cancel = app.buttons["code.import.cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 15))
         cancel.tap()
         app.tabBars.buttons["练习"].tap()
@@ -168,6 +168,74 @@ final class PyLearnUITests: XCTestCase {
         app.tabBars.buttons["设置"].tap()
         XCTAssertTrue(app.staticTexts["编辑器外观"].waitForExistence(timeout: 5))
         attach("settings", app: app)
+    }
+
+    func testWholeFolderAndSingleFileImportAndDeepCancellation() {
+        executionTimeAllowance = 300
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        app.tabBars.buttons["代码"].tap()
+        app.buttons["导入整个文件夹"].tap()
+        openImportFixture(app)
+        filesCell("my-python", app: app).tap()
+        filesCell("modules", app: app).tap()
+        filesCell("deep", app: app).tap()
+        XCTAssertTrue(app.staticTexts["value.py"].waitForExistence(timeout: 10))
+        attach("import-cancel-inside-nested-folder", app: app)
+        app.buttons["code.import.cancel"].tap()
+        XCTAssertTrue(app.buttons["code.import.cancel"].waitForNonExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["我的代码"].exists)
+
+        app.buttons["导入整个文件夹"].tap()
+        openImportFixture(app)
+        filesCell("my-python", app: app).tap()
+        XCTAssertTrue(app.staticTexts["main.py"].waitForExistence(timeout: 10))
+        openFilesSelection(app)
+        XCTAssertTrue(app.buttons["打开运行入口"].waitForExistence(timeout: 20), "A real Files folder selection must finish and open the imported project")
+        app.buttons["打开运行入口"].tap()
+        app.buttons["运行脚本"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "folder import ok")).firstMatch.waitForExistence(timeout: 20), "Folder import must keep modules and data resources usable")
+        app.buttons["完成"].tap()
+        app.buttons["modules"].tap()
+        app.buttons["deep"].tap()
+        XCTAssertTrue(app.buttons["value.py"].waitForExistence(timeout: 5))
+        attach("whole-folder-imported", app: app)
+        app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["导入文件（可多选）"].tap()
+        openImportFixture(app)
+        filesCell("single.py", app: app).tap()
+        if !app.buttons["运行脚本"].waitForExistence(timeout: 2) { openFilesSelection(app) }
+        XCTAssertTrue(app.navigationBars["single.py"].waitForExistence(timeout: 20))
+        app.buttons["运行脚本"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "single import ok")).firstMatch.waitForExistence(timeout: 20))
+        attach("single-file-imported", app: app)
+        app.buttons["完成"].tap()
+    }
+
+    private func filesCell(_ name: String, app: XCUIApplication) -> XCUIElement {
+        let cell = app.collectionViews.cells.containing(.staticText, identifier: name).firstMatch
+        XCTAssertTrue(cell.waitForExistence(timeout: 15), "Missing actual Files item: " + name)
+        return cell
+    }
+    private func openImportFixture(_ app: XCUIApplication) {
+        XCTAssertTrue(app.buttons["code.import.cancel"].waitForExistence(timeout: 10))
+        let browse = app.tabBars.buttons.matching(NSPredicate(format: "label == %@ OR label == %@", "Browse", "浏览")).firstMatch
+        XCTAssertTrue(browse.waitForExistence(timeout: 20))
+        browse.tap()
+        let local = app.cells.containing(.staticText, identifier: "On My iPhone").firstMatch
+        if !local.exists { browse.tap() }
+        XCTAssertTrue(local.waitForExistence(timeout: 15))
+        local.tap()
+        filesCell("Python 学习", app: app).tap()
+        filesCell("PyLearnImportFixture", app: app).tap()
+    }
+    private func openFilesSelection(_ app: XCUIApplication) {
+        let open = app.buttons.matching(NSPredicate(format: "label == %@ OR label == %@", "Open", "打开")).firstMatch
+        XCTAssertTrue(open.waitForExistence(timeout: 10))
+        open.tap()
     }
 
     private func configureLocalAI(_ app: XCUIApplication) {

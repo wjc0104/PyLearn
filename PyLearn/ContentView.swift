@@ -27,35 +27,19 @@ struct ContentView: View {
     }
 }
 
-enum CodeImportMode: String, Identifiable {
+enum CodeImportMode {
     case files, folder
-    var id: String { rawValue }
 }
 
-struct CodeImportPicker: UIViewControllerRepresentable {
+struct CodeImportRequest: Identifiable {
+    let id = UUID()
     let mode: CodeImportMode
-    let completion: ([URL]) -> Void
-    func makeCoordinator() -> Coordinator { Coordinator(completion) }
-    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: mode == .folder ? [.folder] : [.item], asCopy: false)
-        picker.allowsMultipleSelection = mode == .files
-        picker.shouldShowFileExtensions = true
-        picker.delegate = context.coordinator
-        return picker
-    }
-    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
-    final class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let completion: ([URL]) -> Void
-        init(_ completion: @escaping ([URL]) -> Void) { self.completion = completion }
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) { completion(urls) }
-        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { completion([]) }
-    }
 }
 
 struct CodeLibraryView: View {
     @EnvironmentObject private var store: LearningStore
     @EnvironmentObject private var session: PythonSession
-    @State private var importMode: CodeImportMode?
+    @State private var importRequest: CodeImportRequest?
     @State private var selected: ScriptDocument?
     @State private var deleting: ScriptDocument?
     @State private var deletingProject: ScriptProject?
@@ -72,8 +56,8 @@ struct CodeLibraryView: View {
                 projectsSection
                 scriptsSection
                 Section {
-                    Button { importMode = .files } label: { Label("导入文件（可多选）", systemImage: "doc.badge.plus") }
-                    Button { importMode = .folder } label: { Label("导入整个文件夹", systemImage: "folder.badge.plus") }
+                    Button { importRequest = CodeImportRequest(mode: .files) } label: { Label("导入文件（可多选）", systemImage: "doc.badge.plus") }
+                    Button { importRequest = CodeImportRequest(mode: .folder) } label: { Label("导入整个文件夹", systemImage: "folder.badge.plus") }
                     Text("选择文件夹后点“打开”，自动导入其中所有子目录、模块与资源。最多 1000 个文件 / 50 MiB；文本编辑支持 UTF-8、单文件最大 512 KiB。").font(.caption).foregroundColor(.secondary)
                     if !importMessage.isEmpty { Text(importMessage).font(.caption).textSelection(.enabled).accessibilityIdentifier("importResult") }
                 }
@@ -83,8 +67,12 @@ struct CodeLibraryView: View {
             .toolbar { Button {
                 do { selected = try store.create() } catch { store.error = error.localizedDescription }
             } label: { Image(systemName: "plus") }.accessibilityLabel("新建脚本") }
-            .sheet(item: $importMode, onDismiss: finishImport) { mode in
-                CodeImportPicker(mode: mode) { urls in importURLs(urls, mode: mode); importMode = nil }
+            .sheet(item: $importRequest, onDismiss: finishImport) { request in
+                CodeImportPicker(mode: request.mode) { urls in
+                    guard importRequest?.id == request.id else { return }
+                    importURLs(urls, mode: request.mode)
+                    importRequest = nil
+                }.id(request.id)
             }
             .sheet(item: $selected) { document in NavigationStack { ScriptEditor(documentID: document.id) } }
             .sheet(item: $addingScript) { document in NavigationStack { AddScriptToProjectView(documentID: document.id) } }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>application-identifier</key>
+    <string>TROLLTROLL.com.wjc0104.pylearn</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>TROLLTROLL</string>
+    <key>get-task-allow</key>
+    <false/>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>TROLLTROLL.com.wjc0104.pylearn</string>
+        <string>com.wjc0104.pylearn</string>
+        <!-- Keep the legacy TrollStore fallback group so existing keys remain readable. -->
+        <string>TROLLTROLL.*</string>
+    </array>
+</dict>
+</plist>

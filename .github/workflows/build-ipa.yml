@@ -49,7 +49,12 @@ jobs:
           MODEL_SERVER_PID=$!
           trap 'kill "$MODEL_SERVER_PID" 2>/dev/null || true' EXIT
           set -o pipefail
-          xcodebuild -project PyLearn.xcodeproj -scheme PyLearn -configuration Debug -destination "id=$SIMULATOR" -destination-timeout 90 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 -derivedDataPath .build/simulator -resultBundlePath .build/NativeTests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO ONLY_ACTIVE_ARCH=YES test 2>&1 | tee .build/native-tests.log || { tail -100 .build/native-tests.log; exit 1; }
+          XCODE=(xcodebuild -project PyLearn.xcodeproj -scheme PyLearn -configuration Debug -destination "id=$SIMULATOR" -destination-timeout 90 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 -derivedDataPath .build/simulator CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO ONLY_ACTIVE_ARCH=YES)
+          "${XCODE[@]}" build-for-testing 2>&1 | tee .build/simulator-build.log || { tail -100 .build/simulator-build.log; exit 1; }
+          xcrun simctl install "$SIMULATOR" .build/simulator/Build/Products/Debug-iphonesimulator/PyLearn.app
+          APP_DATA=$(xcrun simctl get_app_container "$SIMULATOR" com.wjc0104.pylearn data)
+          python3 tests/prepare_import_fixtures.py "$APP_DATA/Documents"
+          "${XCODE[@]}" -resultBundlePath .build/NativeTests.xcresult test-without-building 2>&1 | tee .build/native-tests.log || { tail -100 .build/native-tests.log; exit 1; }
           xcrun xcresulttool get test-results summary --path .build/NativeTests.xcresult > dist/native-test-summary.json
           xcrun xcresulttool export attachments --path .build/NativeTests.xcresult --output-path dist/screenshots
       - name: Upload IPA and verification

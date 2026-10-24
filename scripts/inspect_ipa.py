@@ -45,6 +45,46 @@ def _machos(data):
     return [(cpu, platform, (minimum >> 16, (minimum >> 8) & 255, minimum & 255))]
 
 
+
+def _entitlements(data):
+    if data[:4] == b'\xca\xfe\xba\xbe':
+        count = struct.unpack_from('>I', data, 4)[0]
+        for index in range(count):
+            cpu, _, offset, length, _ = struct.unpack_from('>5I', data, 8 + index * 20)
+            if cpu == ARM64:
+                return _entitlements(data[offset:offset + length])
+        raise ValueError('No arm64 slice for signed application identity')
+    count = struct.unpack_from('<I', data, 16)[0]
+    offset = 32
+    for _ in range(count):
+        command, length = struct.unpack_from('<II', data, offset)
+        if command == 0x1d:  # LC_CODE_SIGNATURE
+            if length < 16:
+                raise ValueError('Invalid code signature command for app entitlements')
+            start, size = struct.unpack_from('<II', data, offset + 8)
+            if size < 12 or start + size > len(data):
+                raise ValueError('Invalid code signature for app entitlements')
+            blob = data[start:start + size]
+            magic, total, entries = struct.unpack_from('>III', blob)
+            if magic != 0xfade0cc0 or total > len(blob) or 12 + entries * 8 > total:
+                raise ValueError('Invalid signature superblob for app entitlements')
+            for index in range(entries):
+                slot, position = struct.unpack_from('>II', blob, 12 + index * 8)
+                if slot != 5:  # CSSLOT_ENTITLEMENTS, XML plist
+                    continue
+                if position + 8 > total:
+                    raise ValueError('Invalid app entitlements offset')
+                kind, size = struct.unpack_from('>II', blob, position)
+                if kind != 0xfade7171 or size < 8 or position + size > total:
+                    raise ValueError('Invalid app entitlements blob')
+                value = plistlib.loads(blob[position + 8:position + size])
+                if not isinstance(value, dict):
+                    raise ValueError('App entitlements must be a dictionary')
+                return value
+        offset += length
+    return {}
+
+
 def inspect_ipa(path):
     path = Path(path)
     with zipfile.ZipFile(path) as archive:
@@ -91,13 +131,23 @@ def inspect_ipa(path):
             checked += 1
         if checked < 2:
             raise ValueError('App or Python executable is not a valid Mach-O')
+        entitlements = _entitlements(archive.read(base + executable))
+        team = entitlements.get('com.apple.developer.team-identifier')
+        app_id = entitlements.get('application-identifier')
+        if not isinstance(team, str) or not team or app_id != team + '.' + info.get('CFBundleIdentifier', ''):
+            raise ValueError('Missing or mismatched signed application-identifier identity for document picker')
+        groups = entitlements.get('keychain-access-groups')
+        if not isinstance(groups, list) or not all(isinstance(group, str) and group for group in groups) or app_id not in groups:
+            raise ValueError('Missing app keychain access group')
     with path.open('rb') as handle:
         digest = hashlib.file_digest(handle, 'sha256').hexdigest()
     return {'file': path.name, 'bytes': path.stat().st_size,
             'size_mib': round(path.stat().st_size / 1024**2, 2),
             'sha256': digest,
             'bundle_id': info.get('CFBundleIdentifier'), 'version': info.get('CFBundleShortVersionString'),
-            'minimum_ios': minimum, 'macho_count': checked}
+            'minimum_ios': minimum, 'macho_count': checked,
+            'application_identifier': app_id, 'team_identifier': team,
+            'keychain_access_groups': entitlements['keychain-access-groups']}
 
 
 if __name__ == '__main__':
