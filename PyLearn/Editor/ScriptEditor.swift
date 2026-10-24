@@ -39,10 +39,10 @@ struct ScriptEditor: View {
             if !grade.isEmpty { Text(grade).font(.caption).foregroundColor(.teal).padding(5) }
             CodeEditor(text: $text, selection: $selection, controller: editor, editable: !session.busy, errorLine: isPython ? problem?.line : nil).frame(minHeight: 120)
             if !signature.isEmpty { Text(signature).font(.system(.caption2, design: .monospaced)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8) }
-            if !completions.isEmpty && !session.busy {
+            if isPython {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack { ForEach(completions, id: \.self) { item in Button(item) { accept(item) }.font(.system(.caption, design: .monospaced)).buttonStyle(.bordered) } }.padding(.horizontal, 8)
-                }.frame(height: 40)
+                }.frame(height: 40).disabled(session.busy)
             }
             symbolBar
             if let problem, isPython { problemView(problem) }
@@ -68,10 +68,10 @@ struct ScriptEditor: View {
             .alert("文件提示", isPresented: Binding(get: { fileError != nil }, set: { if !$0 { fileError = nil } })) { Button("知道了") { fileError = nil } } message: { Text(fileError ?? "") }
             .onAppear {
                 text = document?.source ?? ""; loaded = true
-                editor.acceptCompletion = { if let first = completions.first { accept(first) } else { editor.insert("    ") } }
+                editor.acceptCompletion = { acceptOrIndent() }
                 analyze()
             }
-            .onChange(of: text) { _ in guard loaded else { return }; store.update(documentID, source: text); grade = ""; gradeReport = ""; analyze() }
+            .onChange(of: text) { _ in guard loaded else { return }; store.update(documentID, source: text); grade = ""; gradeReport = ""; syntaxProblem = nil; completions = []; analyze() }
             .onChange(of: selection) { _ in analyze() }
             .onChange(of: session.prompt) { value in if value != nil { expanded = true } }
             .onChange(of: session.sequence) { _ in
@@ -107,7 +107,7 @@ struct ScriptEditor: View {
             HStack(spacing: 6) {
                 Button { editor.undo() } label: { Image(systemName: "arrow.uturn.backward") }.accessibilityLabel("撤销")
                 Button { editor.redo() } label: { Image(systemName: "arrow.uturn.forward") }.accessibilityLabel("重做")
-                Button("补全 ⇥") { if let first = completions.first { accept(first) } else { editor.insert("    ") } }
+                Button("补全 ⇥") { acceptOrIndent() }
                 ForEach(["⇥","(",")","[","]","{","}",":",",",".","\"","'","=","+","-","*","/","%","**","//","==","!=","<",">","<=",">=","_","#","\\","@","&","|","~",";"], id: \.self) { symbol in
                     Button(symbol) { editor.insert(symbol == "⇥" ? "    " : symbol) }.font(.system(.body, design: .monospaced)).frame(minWidth: 30, minHeight: 36)
                 }
@@ -152,7 +152,18 @@ struct ScriptEditor: View {
             }
         }.padding(10).background(Color(uiColor: .secondarySystemBackground))
     }
-    private func accept(_ value: String) { editor.replace(EditorText.prefixRange(in: text, selection: selection), with: value) }
+    private func accept(_ value: String) {
+        editor.replace(EditorText.prefixRange(in: text, selection: selection), with: value)
+    }
+    private func acceptOrIndent() {
+        let range = EditorText.prefixRange(in: text, selection: selection)
+        let source = text as NSString
+        if range.length == 0 && (range.location == 0 || source.substring(with: NSRange(location: range.location - 1, length: 1)) != ".") {
+            editor.insert("    ")
+            return
+        }
+        if let first = completions.first { accept(first) } else { editor.insert("    ") }
+    }
     private func sendInput() { let value = input; input = ""; session.submitInput(value) }
     private func run() {
         if session.running { session.stop(); return }
@@ -180,10 +191,15 @@ struct ScriptEditor: View {
         analysisTask = Task {
             do { try await Task.sleep(nanoseconds: 300_000_000) } catch { return }
             guard !Task.isCancelled else { return }
-            let prefix = (snapshot as NSString).substring(with: EditorText.prefixRange(in: snapshot, selection: cursor))
-            let before = (snapshot as NSString).substring(to: min(cursor.location, (snapshot as NSString).length))
-            let lines = before.components(separatedBy: "\n")
-            session.analyze(source: snapshot, prefix: prefix, line: lines.count, column: lines.last?.unicodeScalars.count ?? 0, directory: directory, path: path) { error, names, help in
+            let position = await Task.detached(priority: .utility) {
+                let source = snapshot as NSString
+                let prefix = source.substring(with: EditorText.prefixRange(in: snapshot, selection: cursor))
+                let before = source.substring(to: min(max(0, cursor.location), source.length))
+                let lines = before.components(separatedBy: "\n")
+                return (prefix: prefix, line: lines.count, column: lines.last?.unicodeScalars.count ?? 0)
+            }.value
+            guard !Task.isCancelled, text == snapshot, selection == cursor else { return }
+            session.analyze(source: snapshot, prefix: position.prefix, line: position.line, column: position.column, directory: directory, path: path) { error, names, help in
                 guard text == snapshot && selection == cursor && !session.busy else { return }
                 syntaxProblem = error; completions = names; signature = help
             }

@@ -62,16 +62,26 @@ struct CodeEditor: UIViewRepresentable {
     @AppStorage("editor.foreground") private var foreground = "#DDE3ED"
     @AppStorage("editor.background") private var background = "#20232B"
 
+    private var appearanceKey: String { "\(size)|\(font)|\(themeName)|\(foreground)|\(background)" }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> TextView {
         let view = CompletionTextView()
         view.acceptCompletion = { [weak controller] in controller?.acceptCompletion?() }
-        view.setState(TextViewState(text: text, theme: PythonTheme(size: size, fontName: font, mode: themeName, foreground: foreground, background: background), language: .python))
+        let theme = PythonTheme(size: size, fontName: font, mode: themeName, foreground: foreground, background: background)
+        view.setState(TextViewState(text: text, theme: theme, language: .python))
+        context.coordinator.appearanceKey = appearanceKey
         view.showLineNumbers = true
         view.lineSelectionDisplayType = .line
         view.lineHeightMultiplier = 1.35
         view.indentStrategy = .space(length: 4)
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = theme.editorBackground
+        view.isEditable = editable
+        view.autocorrectionType = .no
+        view.autocapitalizationType = .none
+        view.spellCheckingType = .no
+        view.smartQuotesType = .no
+        view.smartDashesType = .no
+        view.smartInsertDeleteType = .no
         view.keyboardDismissMode = .interactive
         view.isFindInteractionEnabled = true
         view.characterPairs = [PythonPair(leading: "(", trailing: ")"), PythonPair(leading: "[", trailing: "]"), PythonPair(leading: "{", trailing: "}"), PythonPair(leading: "\"", trailing: "\""), PythonPair(leading: "'", trailing: "'")]
@@ -87,22 +97,24 @@ struct CodeEditor: UIViewRepresentable {
     func updateUIView(_ view: TextView, context: Context) {
         context.coordinator.parent = self
         context.coordinator.updating = true
-        if view.text != text { view.replace(NSRange(location: 0, length: (view.text as NSString).length), withText: text) }
-        if view.selectedRange != selection && NSMaxRange(selection) <= (text as NSString).length {
-            view.selectedRange = selection
-            view.scrollRangeToVisible(selection)
-        }
-        view.isEditable = editable
-        let key = "\(size)|\(font)|\(themeName)|\(foreground)|\(background)"
+        context.coordinator.synchronize(view)
+        if view.isEditable != editable { view.isEditable = editable }
+        let key = appearanceKey
         if context.coordinator.appearanceKey != key {
             let theme = PythonTheme(size: size, fontName: font, mode: themeName, foreground: foreground, background: background)
             view.theme = theme
             view.backgroundColor = theme.editorBackground
             context.coordinator.appearanceKey = key
         }
-        if let line = errorLine, let range = EditorText.lineRange(in: text, line: line) {
-            view.highlightedRanges = [HighlightedRange(id: "syntax-error", range: range, color: UIColor.systemRed.withAlphaComponent(0.12))]
-        } else { view.highlightedRanges = [] }
+        if view.markedTextRange == nil && (context.coordinator.highlightedSource != text || context.coordinator.errorLine != errorLine) {
+            let range = errorLine.flatMap { EditorText.lineRange(in: text, line: $0) }
+            if range != context.coordinator.highlightedRange {
+                view.highlightedRanges = range.map { [HighlightedRange(id: "syntax-error", range: $0, color: UIColor.systemRed.withAlphaComponent(0.12))] } ?? []
+                context.coordinator.highlightedRange = range
+            }
+            context.coordinator.highlightedSource = text
+            context.coordinator.errorLine = errorLine
+        }
         context.coordinator.updating = false
     }
 
@@ -110,18 +122,59 @@ struct CodeEditor: UIViewRepresentable {
         var parent: CodeEditor
         var updating = false
         var appearanceKey = ""
-        init(_ parent: CodeEditor) { self.parent = parent }
+        var source = ""
+        var cocoaSource: NSString = ""
+        var byteCount = 0
+        var highlightedSource = ""
+        var highlightedRange: NSRange?
+        var errorLine: Int?
+        init(_ parent: CodeEditor) {
+            self.parent = parent
+            super.init()
+            remember(parent.text)
+        }
+        func remember(_ source: String) {
+            self.source = source
+            cocoaSource = source as NSString
+            byteCount = source.utf8.count
+        }
+        func synchronize(_ view: TextView) {
+            let desiredText = parent.text, desiredSelection = parent.selection
+            let wasUpdating = updating
+            updating = true
+            defer { updating = wasUpdating }
+            // Ordinary refreshes must not move the input method's marked caret.
+            if view.markedTextRange != nil {
+                guard desiredText != source else { return }
+                // A genuine external document replacement ends composition first.
+                view.resignFirstResponder()
+                remember(view.text)
+            }
+            if source != desiredText {
+                // External reloads preserve the exact text and start a new undo history.
+                view.text = desiredText
+                remember(desiredText)
+            }
+            if view.selectedRange != desiredSelection && desiredSelection.location >= 0 && desiredSelection.length >= 0 && desiredSelection.location <= cocoaSource.length && desiredSelection.length <= cocoaSource.length - desiredSelection.location {
+                view.selectedRange = desiredSelection
+                view.scrollRangeToVisible(desiredSelection)
+            }
+        }
         func textViewDidChange(_ textView: TextView) {
             guard !updating else { return }
-            parent.text = textView.text
-            parent.selection = textView.selectedRange
+            let updated = textView.text
+            if source != updated { remember(updated); parent.text = updated }
+            if parent.selection != textView.selectedRange { parent.selection = textView.selectedRange }
         }
         func textViewDidChangeSelection(_ textView: TextView) {
             guard !updating else { return }
-            parent.selection = textView.selectedRange
+            if parent.selection != textView.selectedRange { parent.selection = textView.selectedRange }
         }
         func textView(_ textView: TextView, shouldChangeTextIn range: NSRange, replacementText replacement: String) -> Bool {
-            (textView.text as NSString).replacingCharacters(in: range, with: replacement).utf8.count <= 524288
+            guard range.location >= 0, range.length >= 0, range.location <= cocoaSource.length,
+                  range.length <= cocoaSource.length - range.location else { return false }
+            let removedBytes = range.length == 0 ? 0 : cocoaSource.substring(with: range).utf8.count
+            return byteCount - removedBytes + replacement.utf8.count <= 524288
         }
     }
 }

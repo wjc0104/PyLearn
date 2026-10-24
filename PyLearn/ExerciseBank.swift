@@ -208,6 +208,7 @@ struct BankExerciseDetail: View {
     @State private var script: ScriptDocument?
     @State private var report = ""
     @State private var translation = ""
+    @State private var translationExpanded = true
     @State private var translating = false
     var body: some View {
         List {
@@ -219,10 +220,16 @@ struct BankExerciseDetail: View {
                     if let profile = profiles.active {
                         Button(translating ? "翻译中…" : "AI 翻译完整题目（使用 \(profile.name)）") {
                             translating = true
-                            Task { do { translation = try await AIClient.text(profile, key: SecretStore.read("ai." + profile.id.uuidString) ?? "", prompt: "将下面的编程题完整翻译为简体中文，保留函数名和测试字符串，不增加未说明的规则：\n" + String(original.prefix(20000))) } catch { translation = error.localizedDescription }; translating = false }
+                            Task { do { translation = try await AIClient.text(profile, key: SecretStore.read("ai." + profile.id.uuidString) ?? "", prompt: "将下面的编程题完整翻译为简体中文，保留函数名和测试字符串，不增加未说明的规则：\n" + String(original.prefix(20000))) } catch { translation = error.localizedDescription }; translationExpanded = true; translating = false }
                         }.disabled(translating)
                     }
-                    if !translation.isEmpty { Text(translation).textSelection(.enabled) }
+                    if !translation.isEmpty {
+                        Button(translationExpanded ? "收起翻译" : "展开翻译") { translationExpanded.toggle() }
+                        if translationExpanded {
+                            Text(translation).textSelection(.enabled)
+                            Button("收起翻译") { translationExpanded = false }
+                        }
+                    }
                 }
             }
             Section {

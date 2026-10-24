@@ -127,8 +127,8 @@ final class PyLearnUITests: XCTestCase {
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["导入整个文件夹"].tap()
         attach("folder-picker", app: app)
-        XCTAssertTrue(app.buttons["取消"].waitForExistence(timeout: 5) || app.buttons["Cancel"].exists)
-        let cancel = app.buttons["取消"].exists ? app.buttons["取消"] : app.buttons["Cancel"]
+        let cancel = app.buttons.matching(NSPredicate(format: "label == %@ OR label == %@", "取消", "Cancel")).firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 15))
         cancel.tap()
         app.tabBars.buttons["练习"].tap()
         app.buttons["切换 / 测试 AI 模型"].tap()

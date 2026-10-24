@@ -7,6 +7,22 @@ sys.path.insert(0,str(ROOT/'PyLearn/Resources'))
 import runtime
 
 class ProjectRuntimeTests(unittest.TestCase):
+    def test_blank_or_completed_line_keeps_tab_for_indentation(self):
+        for source, line, column in [('', 1, 0), ('print(1)\n    ', 2, 4)]:
+            result = runtime.analyze(source, '', line, column)
+            self.assertEqual(result['completions'], [], 'Whitespace must not launch global completion and make Tab insert abs')
+            self.assertEqual(result['signature'], '')
+
+    def test_empty_member_prefix_and_open_call_still_receive_help(self):
+        member = runtime.analyze("value = 'abc'\nvalue.", '', 2, 6)
+        self.assertIn('capitalize', member['completions'])
+        call = runtime.analyze('print(', '', 1, 6)
+        self.assertIn('print', call['signature'])
+        named = 'def greet(name="world"): pass\ngreet(name='
+        self.assertIn('greet', runtime.analyze(named, '', 2, 11)['signature'])
+        # The source can compile even while the caret sits inside a call.
+        self.assertIn('print', runtime.analyze('print(1)', '', 1, 6)['signature'])
+
     def test_nested_entry_imports_sibling_module(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'tools').mkdir()

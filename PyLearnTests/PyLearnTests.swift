@@ -5,6 +5,93 @@ import Runestone
 
 final class PyLearnTests: XCTestCase {
     @MainActor
+    func testActualEditorTypingPairsUndoCompositionAndExternalReplacement() throws {
+        var source = ""
+        var selection = NSRange(location: 0, length: 0)
+        let controller = EditorController()
+        func editor() -> CodeEditor {
+            CodeEditor(text: Binding(get: { source }, set: { source = $0 }), selection: Binding(get: { selection }, set: { selection = $0 }), controller: controller, editable: true, errorLine: nil)
+        }
+        let host = UIHostingController(rootView: editor())
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true }
+        host.view.layoutIfNeeded()
+        let view = try XCTUnwrap(controller.view)
+        let coordinator = try XCTUnwrap(view.editorDelegate as? CodeEditor.Coordinator)
+        XCTAssertEqual(view.autocorrectionType, .no)
+        XCTAssertEqual(view.autocapitalizationType, .none)
+        XCTAssertEqual(view.smartQuotesType, .no)
+        XCTAssertEqual(view.spellCheckingType, .no)
+        view.selectedRange = NSRange(location: 0, length: 0)
+        for chunk in ["print", "(", "'", "中文🐍", "'", ")", "\n"] {
+            controller.insert(chunk)
+            XCTAssertEqual(source, view.text)
+        }
+        XCTAssertEqual(source, "print('中文🐍')\n")
+        let beforeUndo = source
+        controller.undo()
+        XCTAssertNotEqual(source, beforeUndo)
+        XCTAssertEqual(source, view.text)
+        controller.redo()
+        XCTAssertEqual(source, beforeUndo)
+        XCTAssertEqual(source, view.text)
+
+        view.becomeFirstResponder()
+        view.selectedRange = NSRange(location: 0, length: 0)
+        func input(in root: UIView) -> (UIView & UITextInput)? {
+            if let input = root as? (UIView & UITextInput) { return input }
+            return root.subviews.compactMap { input(in: $0) }.first
+        }
+        let textInput = try XCTUnwrap(input(in: view))
+        textInput.setMarkedText("ni", selectedRange: NSRange(location: 2, length: 0))
+        XCTAssertNotNil(view.markedTextRange)
+        let markedSelection = view.selectedRange
+        selection = NSRange(location: 0, length: 0)
+        coordinator.parent = editor()
+        coordinator.synchronize(view)
+        XCTAssertEqual(view.selectedRange, markedSelection)
+        textInput.setMarkedText("你", selectedRange: NSRange(location: 1, length: 0))
+        textInput.unmarkText()
+        XCTAssertEqual(source, "你print('中文🐍')\n")
+        XCTAssertEqual(source, view.text)
+
+        // Replacing the document while the input method still owns marked text.
+        textInput.setMarkedText("ni", selectedRange: NSRange(location: 2, length: 0))
+        XCTAssertNotNil(view.markedTextRange)
+        source = "external replacement"
+        selection = NSRange(location: 0, length: 0)
+        coordinator.parent = editor()
+        coordinator.synchronize(view)
+        XCTAssertEqual(view.text, "external replacement")
+        XCTAssertEqual(source, "external replacement")
+        for replacement in ["(", "a\r\nb\r\n"] {
+            source = replacement
+            coordinator.parent = editor()
+            coordinator.synchronize(view)
+            XCTAssertEqual(view.text, replacement, "External reload must not pair symbols or normalize line endings")
+            XCTAssertEqual(source, replacement)
+        }
+
+        source = String(repeating: String(repeating: "x", count: 127) + "\n", count: 4096)
+        coordinator.parent = editor()
+        coordinator.synchronize(view)
+        XCTAssertEqual(view.text, source)
+        view.selectedRange = NSRange(location: (source as NSString).length, length: 0)
+        controller.insert("x")
+        XCTAssertEqual(view.text.utf8.count, 524288, "External replacement must refresh the byte-limit cache")
+        source = "# replace after full file\n"
+        selection = NSRange(location: (source as NSString).length, length: 0)
+        coordinator.parent = editor()
+        coordinator.synchronize(view)
+        controller.insert("🐍")
+        XCTAssertEqual(source, "# replace after full file\n🐍")
+        XCTAssertEqual(source, view.text)
+    }
+
+    @MainActor
     func testLongFileInputValidationDoesNotCopyWholeDocumentPerKey() {
         let source = String(repeating: "# 中文abcdef0123456789\n", count: 16000)
         let controller = EditorController()

@@ -91,11 +91,21 @@ def analyze(source, prefix, line=None, column=None, directory=None, path=None):
         _compile(source)
     except (SyntaxError, ValueError) as exc:
         error = _error(exc)
-    names = set(keyword.kwlist) | set(dir(builtins))
-    names.update(re.findall(r'[^\W\d]\w*', source, re.UNICODE))
-    matches = sorted(n for n in names if prefix and n.startswith(prefix) and n != prefix)
+    matches = []
+    if prefix:
+        names = set(keyword.kwlist) | set(dir(builtins))
+        names.update(re.findall(r'[^\W\d]\w*', source, re.UNICODE))
+        matches = sorted(n for n in names if n.startswith(prefix) and n != prefix)
     signature = ''
+    before = ''
     if line is not None and column is not None:
+        lines = source.split('\n')
+        if 0 < line <= len(lines):
+            before = lines[line - 1][:column].rstrip()
+            if not before and error is not None:
+                before = next((value.rstrip() for value in reversed(lines[:line - 1]) if value.strip()), '')
+    # Blank statements should indent on Tab, not start global Jedi inference.
+    if line is not None and column is not None and (prefix or before):
         try:
             import jedi
             # iOS cannot spawn a Python executable; Script only inspects source.
