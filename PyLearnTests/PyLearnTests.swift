@@ -65,6 +65,7 @@ final class PyLearnTests: XCTestCase {
         selection = NSRange(location: 0, length: 0)
         coordinator.parent = editor()
         coordinator.synchronize(view)
+        XCTAssertNil(view.markedTextRange, "External reload must finish composition before replacing the document")
         XCTAssertEqual(view.text, "external replacement")
         XCTAssertEqual(source, "external replacement")
         for replacement in ["(", "a\r\nb\r\n"] {

@@ -8,7 +8,7 @@ import runtime
 
 class ProjectRuntimeTests(unittest.TestCase):
     def test_blank_or_completed_line_keeps_tab_for_indentation(self):
-        for source, line, column in [('', 1, 0), ('print(1)\n    ', 2, 4)]:
+        for source, line, column in [('', 1, 0), ('print(1)\n    ', 2, 4), ("value = '('\n    ", 2, 4), ('# (\n    ', 2, 4)]:
             result = runtime.analyze(source, '', line, column)
             self.assertEqual(result['completions'], [], 'Whitespace must not launch global completion and make Tab insert abs')
             self.assertEqual(result['signature'], '')
@@ -22,6 +22,8 @@ class ProjectRuntimeTests(unittest.TestCase):
         self.assertIn('greet', runtime.analyze(named, '', 2, 11)['signature'])
         # The source can compile even while the caret sits inside a call.
         self.assertIn('print', runtime.analyze('print(1)', '', 1, 6)['signature'])
+        multiline = 'def greet(name): pass\ngreet(\n    \n)'
+        self.assertIn('greet', runtime.analyze(multiline, '', 3, 4)['signature'])
 
     def test_nested_entry_imports_sibling_module(self):
         with tempfile.TemporaryDirectory() as folder:

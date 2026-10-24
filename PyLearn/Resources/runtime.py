@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import sys
 import time
+import tokenize
 import traceback
 import types
 import unittest
@@ -102,8 +103,22 @@ def analyze(source, prefix, line=None, column=None, directory=None, path=None):
         lines = source.split('\n')
         if 0 < line <= len(lines):
             before = lines[line - 1][:column].rstrip()
-            if not before and error is not None:
-                before = next((value.rstrip() for value in reversed(lines[:line - 1]) if value.strip()), '')
+            if not before:
+                # A paired closing bracket can make the whole file valid even
+                # while the caret is on a blank argument line inside a call.
+                cursor_source = '\n'.join(lines[:line - 1] + [lines[line - 1][:column]])
+                delimiters = []
+                try:
+                    for token in tokenize.generate_tokens(io.StringIO(cursor_source).readline):
+                        if token.type == tokenize.OP:
+                            if token.string in ('(', '[', '{'):
+                                delimiters.append(token.string)
+                            elif token.string in (')', ']', '}') and delimiters:
+                                delimiters.pop()
+                except (tokenize.TokenError, IndentationError, SyntaxError):
+                    pass
+                if delimiters:
+                    before = delimiters[-1]
     # Blank statements should indent on Tab, not start global Jedi inference.
     if line is not None and column is not None and (prefix or before):
         try:
