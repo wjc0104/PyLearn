@@ -40,6 +40,7 @@ struct CodeLibraryView: View {
     @EnvironmentObject private var store: LearningStore
     @EnvironmentObject private var session: PythonSession
     @State private var importRequest: CodeImportRequest?
+    @State private var activeImportID: UUID?
     @State private var selected: ScriptDocument?
     @State private var deleting: ScriptDocument?
     @State private var deletingProject: ScriptProject?
@@ -56,8 +57,8 @@ struct CodeLibraryView: View {
                 projectsSection
                 scriptsSection
                 Section {
-                    Button { importRequest = CodeImportRequest(mode: .files) } label: { Label("导入文件（可多选）", systemImage: "doc.badge.plus") }
-                    Button { importRequest = CodeImportRequest(mode: .folder) } label: { Label("导入整个文件夹", systemImage: "folder.badge.plus") }
+                    Button { beginImport(.files) } label: { Label("导入文件（可多选）", systemImage: "doc.badge.plus") }
+                    Button { beginImport(.folder) } label: { Label("导入整个文件夹", systemImage: "folder.badge.plus") }
                     Text("选择文件夹后点“打开”，自动导入其中所有子目录、模块与资源。最多 1000 个文件 / 50 MiB；文本编辑支持 UTF-8、单文件最大 512 KiB。").font(.caption).foregroundColor(.secondary)
                     if !importMessage.isEmpty { Text(importMessage).font(.caption).textSelection(.enabled).accessibilityIdentifier("importResult") }
                 }
@@ -68,8 +69,11 @@ struct CodeLibraryView: View {
                 do { selected = try store.create() } catch { store.error = error.localizedDescription }
             } label: { Image(systemName: "plus") }.accessibilityLabel("新建脚本") }
             .sheet(item: $importRequest, onDismiss: finishImport) { request in
-                CodeImportPicker(mode: request.mode) { urls in
-                    guard importRequest?.id == request.id else { return }
+                CodeImportPicker(mode: request.mode, onDismiss: {
+                    if activeImportID == request.id { finishImport() }
+                }) { urls in
+                    // Files can clear the sheet binding before returning a valid selection.
+                    guard activeImportID == request.id else { return }
                     importURLs(urls, mode: request.mode)
                     importRequest = nil
                 }.id(request.id)
@@ -126,6 +130,11 @@ struct CodeLibraryView: View {
                 }
             }
         }
+    }
+    private func beginImport(_ mode: CodeImportMode) {
+        let request = CodeImportRequest(mode: mode)
+        activeImportID = request.id
+        importRequest = request
     }
     private func importURLs(_ urls: [URL], mode: CodeImportMode) {
         guard !urls.isEmpty else { return }

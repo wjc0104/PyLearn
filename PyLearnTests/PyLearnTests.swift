@@ -18,6 +18,53 @@ final class PyLearnTests: XCTestCase {
     }
 
     @MainActor
+    func testImportConsumesSelectionBeforeOpeningDestinationInEitherDismissalOrder() async throws {
+        func present(_ controller: UIViewController, from parent: UIViewController) async {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                parent.present(controller, animated: false) { continuation.resume() }
+            }
+        }
+        func dismiss(_ controller: UIViewController) async {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                controller.dismiss(animated: false) { continuation.resume() }
+            }
+        }
+        for scenario in 0..<3 {
+            var events: [String] = []
+            let picker = CodeImportPicker(mode: .files, onDismiss: { events.append("open destination") }) { urls in
+                XCTAssertEqual(urls.count, 1)
+                events.append("consume selection")
+            }
+            let coordinator = picker.makeCoordinator()
+            let native = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: false)
+            let container = CodeImportPickerController(picker: native, cancel: { coordinator.finish([]) }, disappeared: { coordinator.didDisappear() })
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let window = UIWindow(windowScene: scene)
+            let host = UIViewController()
+            window.rootViewController = host
+            window.isHidden = false
+            defer { window.isHidden = true }
+            host.view.layoutIfNeeded()
+            await present(container, from: host)
+            let cover = UIViewController()
+            if scenario == 2 {
+                cover.modalPresentationStyle = .fullScreen
+                await present(cover, from: container)
+                XCTAssertNil(container.view.window, "Exercise a real full-screen cover, not dismissal")
+            }
+            if scenario == 0 { await dismiss(container) }
+            coordinator.documentPicker(native, didPickDocumentsAt: [URL(fileURLWithPath: "/tmp/selected.py")])
+            if scenario != 0 {
+                XCTAssertEqual(events, ["consume selection"], "Do not present an editor while the picker is open or covered")
+                if scenario == 2 { await dismiss(cover) }
+                await dismiss(container)
+            }
+            coordinator.documentPickerWasCancelled(native)
+            XCTAssertEqual(events, ["consume selection", "open destination"], "Consume the selection and navigate exactly once, regardless of native dismissal order")
+        }
+    }
+
+    @MainActor
     func testImportCancelStaysOutsideFilesBrowserAndFinishesOnce() throws {
         for mode in [CodeImportMode.files, .folder] {
             var received: [[URL]] = []

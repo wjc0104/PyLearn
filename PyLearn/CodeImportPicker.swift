@@ -3,26 +3,40 @@ import UniformTypeIdentifiers
 
 struct CodeImportPicker: UIViewControllerRepresentable {
     let mode: CodeImportMode
+    var onDismiss: () -> Void = {}
     let completion: ([URL]) -> Void
-    func makeCoordinator() -> Coordinator { Coordinator(completion) }
+    func makeCoordinator() -> Coordinator { Coordinator(completion, onDismiss: onDismiss) }
     func makeUIViewController(context: Context) -> CodeImportPickerController {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: mode == .folder ? [.folder] : [.item], asCopy: false)
         picker.allowsMultipleSelection = mode == .files
         picker.shouldShowFileExtensions = true
         picker.delegate = context.coordinator
-        return CodeImportPickerController(picker: picker) { context.coordinator.finish([]) }
+        return CodeImportPickerController(picker: picker, cancel: { context.coordinator.finish([]) }, disappeared: { context.coordinator.didDisappear() })
     }
     func updateUIViewController(_ controller: CodeImportPickerController, context: Context) {
         context.coordinator.completion = completion
+        context.coordinator.onDismiss = onDismiss
     }
     final class Coordinator: NSObject, UIDocumentPickerDelegate {
         var completion: ([URL]) -> Void
+        var onDismiss: () -> Void
         private var finished = false
-        init(_ completion: @escaping ([URL]) -> Void) { self.completion = completion }
+        private var disappeared = false
+        private var dismissalDelivered = false
+        init(_ completion: @escaping ([URL]) -> Void, onDismiss: @escaping () -> Void = {}) {
+            self.completion = completion; self.onDismiss = onDismiss
+        }
         func finish(_ urls: [URL]) {
             guard !finished else { return }
             finished = true
             completion(urls)
+            finishDismissal()
+        }
+        func didDisappear() { disappeared = true; finishDismissal() }
+        private func finishDismissal() {
+            guard finished, disappeared, !dismissalDelivered else { return }
+            dismissalDelivered = true
+            onDismiss()
         }
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) { finish(urls) }
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { finish([]) }
@@ -33,8 +47,10 @@ struct CodeImportPicker: UIViewControllerRepresentable {
 final class CodeImportPickerController: UIViewController {
     private let picker: UIDocumentPickerViewController
     private let cancel: () -> Void
-    init(picker: UIDocumentPickerViewController, cancel: @escaping () -> Void) {
-        self.picker = picker; self.cancel = cancel
+    private let disappeared: () -> Void
+    private var dismissing = false
+    init(picker: UIDocumentPickerViewController, cancel: @escaping () -> Void, disappeared: @escaping () -> Void) {
+        self.picker = picker; self.cancel = cancel; self.disappeared = disappeared
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -63,6 +79,24 @@ final class CodeImportPickerController: UIViewController {
             picker.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         picker.didMove(toParent: self)
+    }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        dismissing = false
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        // A provider's full-screen UI can cover the picker without closing it.
+        dismissing = false
+        var controller: UIViewController? = self
+        while let current = controller {
+            if current.isBeingDismissed { dismissing = true; break }
+            controller = current.parent
+        }
+    }
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if dismissing { disappeared() }
     }
     @objc private func cancelImport() { cancel() }
 }
