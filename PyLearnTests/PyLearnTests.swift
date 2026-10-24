@@ -5,6 +5,49 @@ import Runestone
 
 final class PyLearnTests: XCTestCase {
     @MainActor
+    func testPickerDeliversOnlyOneSelectionOrCancellation() {
+        var received: [[URL]] = []
+        let picker = CodeImportPicker(mode: .files) { received.append($0) }
+        let coordinator = picker.makeCoordinator()
+        let native = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: false)
+        let file = URL(fileURLWithPath: "/tmp/selected.py")
+        coordinator.documentPicker(native, didPickDocumentsAt: [file])
+        coordinator.documentPickerWasCancelled(native)
+        coordinator.documentPicker(native, didPickDocumentsAt: [file])
+        XCTAssertEqual(received, [[file]], "A late Files callback must not import twice or replace the selected result with cancellation")
+    }
+
+    @MainActor
+    func testImportCancelStaysOutsideFilesBrowserAndFinishesOnce() throws {
+        for mode in [CodeImportMode.files, .folder] {
+            var received: [[URL]] = []
+            let host = UIHostingController(rootView: CodeImportPicker(mode: mode) { received.append($0) })
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let window = UIWindow(windowScene: scene)
+            window.rootViewController = host
+            window.isHidden = false
+            defer { window.isHidden = true }
+            host.view.layoutIfNeeded()
+            func button(in root: UIView) -> UIButton? {
+                if let button = root as? UIButton, button.accessibilityIdentifier == "code.import.cancel" { return button }
+                return root.subviews.compactMap { button(in: $0) }.first
+            }
+            func picker(in root: UIViewController) -> UIDocumentPickerViewController? {
+                if let picker = root as? UIDocumentPickerViewController { return picker }
+                return root.children.compactMap { picker(in: $0) }.first
+            }
+            let native = try XCTUnwrap(picker(in: host))
+            let cancel = try XCTUnwrap(button(in: host.view), "Cancellation must remain available outside the Files navigation hierarchy")
+            XCTAssertFalse(cancel.isDescendant(of: native.view))
+            cancel.sendActions(for: .touchUpInside)
+            native.delegate?.documentPickerWasCancelled?(native)
+            cancel.sendActions(for: .touchUpInside)
+            XCTAssertEqual(received.count, 1)
+            XCTAssertTrue(received.first?.isEmpty == true)
+        }
+    }
+
+    @MainActor
     func testActualEditorTypingPairsUndoCompositionAndExternalReplacement() throws {
         var source = ""
         var selection = NSRange(location: 0, length: 0)
