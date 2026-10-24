@@ -139,6 +139,71 @@ final class PyLearnUITests: XCTestCase {
         app.buttons["完成"].tap()
     }
 
+    func testCompleteButtonReplacesPrefixAndReportsNoCandidate() {
+        executionTimeAllowance = 300
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        app.tabBars.buttons["代码"].tap()
+        app.buttons["新建脚本"].tap()
+        let editor = app.scrollViews["pythonEditor"].textViews.firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        editor.tap()
+        editor.typeText("pr")
+        app.buttons["补全 ⇥"].tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "print"), object: editor)], timeout: 20), .completed, "The completion button must change the real editor text from pr to print")
+        editor.tap()
+        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "zzzzNoSuchName")
+        app.buttons["补全 ⇥"].tap()
+        XCTAssertTrue(app.staticTexts["没有可用的补全候选"].waitForExistence(timeout: 20))
+        XCTAssertEqual(editor.value as? String, "zzzzNoSuchName", "Completion with no match must keep the code unchanged")
+        attach("completion-button-real-text", app: app)
+        app.buttons["完成"].tap()
+    }
+
+    func testScriptsCanBeSelectedAndDeletedTogetherWithCancellation() {
+        executionTimeAllowance = 300
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        app.tabBars.buttons["代码"].tap()
+        var names: [String] = []
+        for _ in 0..<3 {
+            app.buttons["新建脚本"].tap()
+            XCTAssertTrue(app.buttons["运行脚本"].waitForExistence(timeout: 10))
+            let title = app.navigationBars.matching(NSPredicate(format: "identifier ENDSWITH %@", ".py")).firstMatch.identifier
+            names.append(title)
+            app.buttons["完成"].tap()
+        }
+        let choose = app.buttons["选择脚本"]
+        XCTAssertTrue(choose.waitForExistence(timeout: 5), "The scripts list needs bulk selection")
+        choose.tap()
+        app.buttons["全选"].tap()
+        XCTAssertTrue(app.buttons["取消全选"].exists)
+        app.buttons["取消全选"].tap()
+        func row(_ name: String) -> XCUIElement {
+            app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
+        }
+        row(names[0]).tap()
+        row(names[1]).tap()
+        app.buttons["删除所选（2）"].tap()
+        app.buttons["取消"].tap()
+        XCTAssertTrue(row(names[0]).exists)
+        XCTAssertTrue(row(names[1]).exists)
+        app.buttons["删除所选（2）"].tap()
+        app.buttons["删除 2 个脚本"].tap()
+        XCTAssertTrue(row(names[0]).waitForNonExistence(timeout: 5))
+        XCTAssertFalse(row(names[1]).exists)
+        XCTAssertTrue(row(names[2]).exists, "An unselected script must survive batch deletion")
+        app.terminate()
+        app.launch()
+        app.tabBars.buttons["代码"].tap()
+        XCTAssertFalse(row(names[0]).exists)
+        XCTAssertFalse(row(names[1]).exists)
+        XCTAssertTrue(row(names[2]).exists)
+        attach("scripts-batch-deleted", app: app)
+    }
+
     func testLearningAndEditorScreens() {
         let app = XCUIApplication()
         app.launch()
