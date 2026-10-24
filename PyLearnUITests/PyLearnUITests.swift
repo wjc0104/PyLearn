@@ -1,27 +1,39 @@
 import XCTest
 
 final class PyLearnUITests: XCTestCase {
+    func testTranslatedExerciseCanCollapseAndReopenWithoutRegeneration() {
+        executionTimeAllowance = 300
+        let app = XCUIApplication()
+        app.launchArguments += ["-ai.profiles", "", "-ai.selected", ""]
+        app.launch()
+        configureLocalAI(app)
+        app.tabBars.buttons["练习"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "你好，世界")).firstMatch.tap()
+        let translate = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "AI 翻译完整题目")).firstMatch
+        if !translate.isHittable { app.swipeUp() }
+        XCTAssertTrue(translate.waitForExistence(timeout: 5))
+        translate.tap()
+        let translated = app.staticTexts["翻译测试结果 1"]
+        XCTAssertTrue(translated.waitForExistence(timeout: 15))
+        let collapse = app.buttons["收起翻译"].firstMatch
+        XCTAssertTrue(collapse.waitForExistence(timeout: 5), "Translation needs an accessible collapse control")
+        guard collapse.exists else { return }
+        collapse.tap()
+        XCTAssertTrue(translated.waitForNonExistence(timeout: 5))
+        app.buttons["展开翻译"].tap()
+        XCTAssertTrue(translated.waitForExistence(timeout: 5), "Reopening must keep the result without a second API call")
+        attach("translation-expanded", app: app)
+        app.buttons["收起翻译"].firstMatch.tap()
+        attach("translation-collapsed", app: app)
+    }
+
     func testModelResultStaysVisibleAndSwitchRequiresConfirmation() {
         // Simulator keyboard quiescence can consume two 60-second waits before any request.
         executionTimeAllowance = 300
         let app = XCUIApplication()
+        app.launchArguments += ["-ai.profiles", "", "-ai.selected", ""]
         app.launch()
-        app.tabBars.buttons["设置"].tap()
-        app.buttons["管理服务商与 API 配置"].tap()
-        let localPreset = app.buttons["Ollama 局域网"]
-        if !localPreset.isHittable { app.swipeUp() }
-        localPreset.tap()
-        let address = app.textFields["API Base URL（不含具体请求路径）"]
-        XCTAssertTrue(address.waitForExistence(timeout: 5))
-        address.tap()
-        let oldAddress = address.value as? String ?? ""
-        address.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldAddress.count) + "http://127.0.0.1:18764/v1")
-        let model = app.textFields["模型 ID"]
-        model.tap(); model.typeText("ui-original\n")
-        app.buttons["测试并保存配置"].tap()
-        XCTAssertTrue(app.alerts["配置测试通过"].waitForExistence(timeout: 15))
-        app.alerts.buttons["完成"].tap()
-        XCTAssertTrue(app.navigationBars["Ollama 局域网"].waitForNonExistence(timeout: 5))
+        configureLocalAI(app)
         app.tabBars.buttons["练习"].tap()
         app.buttons["切换 / 测试 AI 模型"].tap()
         let second = app.cells.containing(.staticText, identifier: "ui-second").firstMatch
@@ -154,6 +166,25 @@ final class PyLearnUITests: XCTestCase {
         app.tabBars.buttons["设置"].tap()
         XCTAssertTrue(app.staticTexts["编辑器外观"].waitForExistence(timeout: 5))
         attach("settings", app: app)
+    }
+
+    private func configureLocalAI(_ app: XCUIApplication) {
+        app.tabBars.buttons["设置"].tap()
+        app.buttons["管理服务商与 API 配置"].tap()
+        let localPreset = app.buttons["Ollama 局域网"]
+        if !localPreset.isHittable { app.swipeUp() }
+        localPreset.tap()
+        let address = app.textFields["API Base URL（不含具体请求路径）"]
+        XCTAssertTrue(address.waitForExistence(timeout: 5))
+        address.tap()
+        let oldAddress = address.value as? String ?? ""
+        address.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldAddress.count) + "http://127.0.0.1:18764/v1")
+        let model = app.textFields["模型 ID"]
+        model.tap(); model.typeText("ui-original\n")
+        app.buttons["测试并保存配置"].tap()
+        XCTAssertTrue(app.alerts["配置测试通过"].waitForExistence(timeout: 15))
+        app.alerts.buttons["完成"].tap()
+        XCTAssertTrue(app.navigationBars["Ollama 局域网"].waitForNonExistence(timeout: 5))
     }
 
     private func attach(_ name: String, app: XCUIApplication) {

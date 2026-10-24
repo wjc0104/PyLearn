@@ -1,7 +1,43 @@
 import XCTest
+import SwiftUI
+import Runestone
 @testable import PyLearn
 
 final class PyLearnTests: XCTestCase {
+    @MainActor
+    func testLongFileInputValidationDoesNotCopyWholeDocumentPerKey() {
+        let source = String(repeating: "# 中文abcdef0123456789\n", count: 16000)
+        let controller = EditorController()
+        let editor = CodeEditor(text: .constant(source), selection: .constant(NSRange(location: 0, length: 0)), controller: controller, editable: true, errorLine: nil)
+        let coordinator = editor.makeCoordinator()
+        let view = TextView()
+        view.text = source
+        let insertion = NSRange(location: (source as NSString).length, length: 0)
+        let started = ProcessInfo.processInfo.systemUptime
+        for _ in 0..<1000 {
+            XCTAssertTrue(coordinator.textView(view, shouldChangeTextIn: insertion, replacementText: "x"))
+        }
+        let elapsed = ProcessInfo.processInfo.systemUptime - started
+        print("EDITOR_INPUT_VALIDATION_1000_MS: \(elapsed * 1000)")
+        XCTAssertLessThan(elapsed, 0.25, "A small key validation must not copy/encode the entire 400 KiB file")
+    }
+
+    @MainActor
+    func testEditorByteLimitHandlesUnicodeReplacementAndUpdatedText() {
+        var source = String(repeating: "x", count: 524284) + "🐍"
+        let editor = CodeEditor(text: Binding(get: { source }, set: { source = $0 }), selection: .constant(NSRange(location: 0, length: 0)), controller: EditorController(), editable: true, errorLine: nil)
+        let coordinator = editor.makeCoordinator()
+        let view = TextView()
+        view.text = source
+        XCTAssertFalse(coordinator.textView(view, shouldChangeTextIn: NSRange(location: 524286, length: 0), replacementText: "a"))
+        XCTAssertFalse(coordinator.textView(view, shouldChangeTextIn: NSRange(location: 524284, length: 2), replacementText: "中文"))
+        XCTAssertTrue(coordinator.textView(view, shouldChangeTextIn: NSRange(location: 524284, length: 2), replacementText: "é"))
+        view.text = "abc"
+        coordinator.textViewDidChange(view)
+        XCTAssertEqual(source, "abc")
+        XCTAssertTrue(coordinator.textView(view, shouldChangeTextIn: NSRange(location: 3, length: 0), replacementText: "中文🐍"))
+    }
+
     @MainActor
     func testModelTestDoesNotSwitchUntilUserConfirmsAndRejectsStaleResults() async throws {
         let suite = "PyLearn-tests-" + UUID().uuidString

@@ -4,6 +4,7 @@ import json
 
 
 class ModelFixture(BaseHTTPRequestHandler):
+    translations = 0
     def reply(self, code, body):
         data = json.dumps(body).encode()
         self.send_response(code)
@@ -20,7 +21,12 @@ class ModelFixture(BaseHTTPRequestHandler):
         if body.get('model') == 'ui-unavailable':
             self.reply(403, {'error': {'message': 'fixture unavailable'}})
         else:
-            self.reply(200, {'choices': [{'message': {'content': 'OK'}}]})
+            prompt = str(body.get('messages', [{}])[-1].get('content', ''))
+            text = 'OK'
+            if prompt.startswith('将下面的编程题完整翻译'):
+                type(self).translations += 1
+                text = f'翻译测试结果 {type(self).translations}'
+            self.reply(200, {'choices': [{'message': {'content': text}}]})
 
     def log_message(self, *args):
         pass
