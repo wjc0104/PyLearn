@@ -14,6 +14,9 @@ struct ScriptEditor: View {
     @State private var completions: [String] = []
     @State private var signature = ""
     @State private var analysisTask: Task<Void, Never>?
+    @State private var analysisID = UUID()
+    @State private var pendingCompletion: (source: String, cursor: NSRange)?
+    @State private var completionMessage = ""
     @State private var input = ""
     @State private var exporting = false
     @State private var expanded = true
@@ -21,6 +24,7 @@ struct ScriptEditor: View {
     @State private var grade = ""
     @State private var gradeReport = ""
     @State private var fileError: String?
+    private var completing: Bool { pendingCompletion != nil }
     private var document: ScriptDocument? { store.document(documentID) }
     private var directory: String? { document?.projectID.map { store.projectRoot($0).path } }
     private var path: String? { if let id = document?.projectID, let path = document?.relativePath { return try? store.projectFile(id, path: path).path }; return nil }
@@ -41,7 +45,11 @@ struct ScriptEditor: View {
             if !signature.isEmpty { Text(signature).font(.system(.caption2, design: .monospaced)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8) }
             if isPython {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack { ForEach(completions, id: \.self) { item in Button(item) { accept(item) }.font(.system(.caption, design: .monospaced)).buttonStyle(.bordered) } }.padding(.horizontal, 8)
+                    HStack {
+                        if completing { ProgressView(); Text("正在获取补全…").font(.caption) }
+                        else if !completionMessage.isEmpty { Text(completionMessage).font(.caption).foregroundColor(.secondary) }
+                        ForEach(completions, id: \.self) { item in Button(item) { accept(item) }.font(.system(.caption, design: .monospaced)).buttonStyle(.bordered) }
+                    }.padding(.horizontal, 8)
                 }.frame(height: 40).disabled(session.busy)
             }
             symbolBar
@@ -86,7 +94,7 @@ struct ScriptEditor: View {
                 }
                 analyze()
             }
-            .onDisappear { analysisTask?.cancel(); editor.acceptCompletion = nil; store.flush(); if session.documentID == documentID && session.running { session.stop() } }
+            .onDisappear { analysisTask?.cancel(); analysisID = UUID(); pendingCompletion = nil; editor.acceptCompletion = nil; store.flush(); if session.documentID == documentID && session.running { session.stop() } }
     }
     private func problemView(_ problem: PythonProblem) -> some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -107,7 +115,7 @@ struct ScriptEditor: View {
             HStack(spacing: 6) {
                 Button { editor.undo() } label: { Image(systemName: "arrow.uturn.backward") }.accessibilityLabel("撤销")
                 Button { editor.redo() } label: { Image(systemName: "arrow.uturn.forward") }.accessibilityLabel("重做")
-                Button("补全 ⇥") { acceptOrIndent() }
+                Button("补全 ⇥") { complete() }.disabled(completing).accessibilityHint("获取并接受当前名称的第一个补全候选")
                 ForEach(["⇥","(",")","[","]","{","}",":",",",".","\"","'","=","+","-","*","/","%","**","//","==","!=","<",">","<=",">=","_","#","\\","@","&","|","~",";"], id: \.self) { symbol in
                     Button(symbol) { editor.insert(symbol == "⇥" ? "    " : symbol) }.font(.system(.body, design: .monospaced)).frame(minWidth: 30, minHeight: 36)
                 }
@@ -153,21 +161,27 @@ struct ScriptEditor: View {
         }.padding(10).background(Color(uiColor: .secondarySystemBackground))
     }
     private func accept(_ value: String) {
-        editor.replace(EditorText.prefixRange(in: text, selection: selection), with: value)
+        let cursor = editor.view?.selectedRange ?? selection
+        editor.replace(EditorText.prefixRange(in: text, selection: cursor), with: value)
+    }
+    private func complete() {
+        guard !session.busy, !completing else { return }
+        analyze(completeFirst: true)
     }
     private func acceptOrIndent() {
-        let range = EditorText.prefixRange(in: text, selection: selection)
+        let range = EditorText.prefixRange(in: text, selection: editor.view?.selectedRange ?? selection)
         let source = text as NSString
         if range.length == 0 && (range.location == 0 || source.substring(with: NSRange(location: range.location - 1, length: 1)) != ".") {
             editor.insert("    ")
             return
         }
-        if let first = completions.first { accept(first) } else { editor.insert("    ") }
+        complete()
     }
     private func sendInput() { let value = input; input = ""; session.submitInput(value) }
     private func run() {
         if session.running { session.stop(); return }
         do { try store.flushOrThrow() } catch { fileError = "保存失败，已取消运行。请先导出代码。"; return }
+        analysisTask?.cancel(); analysisID = UUID(); pendingCompletion = nil
         editor.dismissKeyboard(); expanded = true; grade = ""; gradeReport = ""
         session.run(source: text, documentID: documentID, directory: directory, path: path)
     }
@@ -177,6 +191,7 @@ struct ScriptEditor: View {
         expanded = true; editor.dismissKeyboard()
         let snapshot = text
         do { try store.flushOrThrow() } catch { fileError = "保存失败，已取消运行。请先导出代码。"; return }
+        analysisTask?.cancel(); analysisID = UUID(); pendingCompletion = nil
         session.perform(["action":"grade","source":snapshot,"module":bankExercise.module,"tests":bankExercise.tests]) { response in
             gradeReport = response["report"] as? String ?? "无法判题"
             let success = response["status"] as? String == "success"
@@ -184,12 +199,20 @@ struct ScriptEditor: View {
             if success && text == snapshot { store.markComplete(bankExercise.id) }
         }
     }
-    private func analyze() {
+    private func analyze(completeFirst: Bool = false) {
+        let snapshot = text, cursor = editor.view?.selectedRange ?? selection
+        // A delayed selection notification must not cancel an unchanged manual request.
+        if !completeFirst, let pendingCompletion, pendingCompletion.source == snapshot, pendingCompletion.cursor == cursor { return }
         analysisTask?.cancel()
-        guard !session.busy, isPython else { completions = []; return }
-        let snapshot = text, cursor = selection
+        let requestID = UUID()
+        analysisID = requestID
+        completions = []; completionMessage = ""; pendingCompletion = nil
+        guard !session.busy, isPython else { return }
+        if completeFirst { pendingCompletion = (snapshot, cursor) }
         analysisTask = Task {
-            do { try await Task.sleep(nanoseconds: 300_000_000) } catch { return }
+            if !completeFirst {
+                do { try await Task.sleep(nanoseconds: 300_000_000) } catch { return }
+            }
             guard !Task.isCancelled else { return }
             let position = await Task.detached(priority: .utility) {
                 let source = snapshot as NSString
@@ -198,10 +221,15 @@ struct ScriptEditor: View {
                 let lines = before.components(separatedBy: "\n")
                 return (prefix: prefix, line: lines.count, column: lines.last?.unicodeScalars.count ?? 0)
             }.value
-            guard !Task.isCancelled, text == snapshot, selection == cursor else { return }
+            guard !Task.isCancelled, analysisID == requestID, text == snapshot, (editor.view?.selectedRange ?? selection) == cursor else { return }
             session.analyze(source: snapshot, prefix: position.prefix, line: position.line, column: position.column, directory: directory, path: path) { error, names, help in
-                guard text == snapshot && selection == cursor && !session.busy else { return }
+                guard analysisID == requestID, text == snapshot, (editor.view?.selectedRange ?? selection) == cursor, !session.busy else { return }
                 syntaxProblem = error; completions = names; signature = help
+                if completeFirst {
+                    pendingCompletion = nil
+                    if let first = names.first { accept(first) }
+                    else { completionMessage = "没有可用的补全候选" }
+                }
             }
         }
     }

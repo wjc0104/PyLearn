@@ -117,6 +117,7 @@ final class PyLearnUITests: XCTestCase {
         attach("git-history", app: app)
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
+        reveal(app.buttons["导入整个文件夹"], in: app)
         XCTAssertTrue(app.buttons["导入整个文件夹"].waitForExistence(timeout: 5))
         let script = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "你好，Python.py")).firstMatch
         XCTAssertTrue(script.exists)
@@ -127,6 +128,7 @@ final class PyLearnUITests: XCTestCase {
         app.buttons["新项目"].firstMatch.tap()
         XCTAssertTrue(app.buttons["你好，Python.py"].waitForExistence(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
+        reveal(app.buttons["导入整个文件夹"], in: app)
         app.buttons["导入整个文件夹"].tap()
         attach("folder-picker", app: app)
         let cancel = app.buttons["code.import.cancel"]
@@ -153,10 +155,23 @@ final class PyLearnUITests: XCTestCase {
         app.buttons["补全 ⇥"].tap()
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "print"), object: editor)], timeout: 20), .completed, "The completion button must change the real editor text from pr to print")
         editor.tap()
-        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "zzzzNoSuchName")
+        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "pr")
+        XCTAssertTrue(app.buttons["print"].waitForExistence(timeout: 20), "Typing must also display real candidates")
+        app.buttons["补全 ⇥"].tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "print"), object: editor)], timeout: 20), .completed)
+        editor.typeText("('ok')")
+        XCTAssertEqual(editor.value as? String, "print('ok')", "Typing after completion must continue at the completed word's end")
+        editor.tap()
+        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 11) + "zzzzNoSuchName")
         app.buttons["补全 ⇥"].tap()
         XCTAssertTrue(app.staticTexts["没有可用的补全候选"].waitForExistence(timeout: 20))
         XCTAssertEqual(editor.value as? String, "zzzzNoSuchName", "Completion with no match must keep the code unchanged")
+        attach("completion-no-match-keeps-code", app: app)
+        editor.tap()
+        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "zzzzNoSuchName".count) + "value = 'abc'\nvalue.up")
+        XCTAssertTrue(app.buttons["upper"].waitForExistence(timeout: 20))
+        app.buttons["upper"].tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "value = 'abc'\nvalue.upper"), object: editor)], timeout: 20), .completed)
         attach("completion-button-real-text", app: app)
         app.buttons["完成"].tap()
     }
@@ -241,6 +256,7 @@ final class PyLearnUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         app.tabBars.buttons["代码"].tap()
+        reveal(app.buttons["导入整个文件夹"], in: app)
         app.buttons["导入整个文件夹"].tap()
         openImportFixture(app)
         filesCell("my-python", app: app).tap()
@@ -252,6 +268,7 @@ final class PyLearnUITests: XCTestCase {
         XCTAssertTrue(app.buttons["code.import.cancel"].waitForNonExistence(timeout: 10))
         XCTAssertTrue(app.navigationBars["我的代码"].exists)
 
+        reveal(app.buttons["导入整个文件夹"], in: app)
         app.buttons["导入整个文件夹"].tap()
         openImportFixture(app)
         filesCell("my-python", app: app).tap()
@@ -269,6 +286,7 @@ final class PyLearnUITests: XCTestCase {
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
+        reveal(app.buttons["导入文件（可多选）"], in: app)
         app.buttons["导入文件（可多选）"].tap()
         openImportFixture(app)
         filesCell("single.py", app: app).tap()
@@ -278,6 +296,14 @@ final class PyLearnUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "single import ok")).firstMatch.waitForExistence(timeout: 20))
         attach("single-file-imported", app: app)
         app.buttons["完成"].tap()
+    }
+
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<5 {
+            if element.isHittable { return }
+            app.swipeUp()
+        }
+        XCTAssertTrue(element.isHittable, "Expected control must become reachable by scrolling")
     }
 
     private func filesCell(_ name: String, app: XCUIApplication) -> XCUIElement {

@@ -385,6 +385,33 @@ final class PyLearnTests: XCTestCase {
     }
 
     @MainActor
+    func testBatchScriptDeletionProtectsUnselectedAndProjectFilesAndRollsBackOnSaveFailure() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LearningStore(directory: directory)
+        let first = try store.create(name: "first.py", source: "print(1)")
+        let second = try store.create(name: "second.py", source: "print(2)")
+        let keep = try store.create(name: "keep.py", source: "print(3)")
+        let project = try store.createProject(name: "keep project")
+        let projectFile = try store.openProjectFile(project, path: "main.py")
+        let before = Set(store.documents.map(\.id))
+        XCTAssertThrowsError(try store.deleteScripts([first.id, projectFile.id]))
+        XCTAssertEqual(Set(store.documents.map(\.id)), before, "Invalid selections must not partially delete scripts")
+        try store.deleteScripts([first.id, second.id])
+        let restored = LearningStore(directory: directory)
+        XCTAssertNil(restored.document(first.id)); XCTAssertNil(restored.document(second.id))
+        XCTAssertEqual(restored.document(keep.id)?.source, "print(3)")
+        XCTAssertNotNil(restored.document(projectFile.id))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.projectFile(project.id, path: "main.py").path))
+        let saved = directory.appendingPathComponent("library.json")
+        try FileManager.default.removeItem(at: saved)
+        try FileManager.default.createDirectory(at: saved, withIntermediateDirectories: false)
+        XCTAssertThrowsError(try store.deleteScripts([keep.id]))
+        XCTAssertEqual(store.document(keep.id)?.source, "print(3)", "A failed batch save must preserve all selected source in memory")
+        XCTAssertNotNil(store.document(projectFile.id))
+    }
+
+    @MainActor
     func testFolderImportPreservesResourcesAndEntryAndDeletesPersistently() throws {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: base) }

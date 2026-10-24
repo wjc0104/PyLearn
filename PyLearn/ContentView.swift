@@ -43,6 +43,9 @@ struct CodeLibraryView: View {
     @State private var activeImportID: UUID?
     @State private var selected: ScriptDocument?
     @State private var deleting: ScriptDocument?
+    @State private var choosingScripts = false
+    @State private var chosenScripts: Set<UUID> = []
+    @State private var confirmingScriptDeletion = false
     @State private var deletingProject: ScriptProject?
     @State private var addingScript: ScriptDocument?
     @State private var cloning = false
@@ -50,24 +53,61 @@ struct CodeLibraryView: View {
     @State private var importMessage = ""
     @State private var importedDocument: ScriptDocument?
     @State private var importedProject: UUID?
+    private var standaloneScripts: [ScriptDocument] { store.documents.filter { $0.projectID == nil } }
     var body: some View {
         NavigationStack(path: $navigation) {
             List {
                 Section { Label("本机运行 · Python 3.15.1", systemImage: "iphone").font(.subheadline) }
-                projectsSection
+                projectsSection.disabled(choosingScripts)
                 scriptsSection
                 Section {
-                    Button { beginImport(.files) } label: { Label("导入文件（可多选）", systemImage: "doc.badge.plus") }
-                    Button { beginImport(.folder) } label: { Label("导入整个文件夹", systemImage: "folder.badge.plus") }
+                    Button { beginImport(.files) } label: { Label("导入文件（可多选）", systemImage: "doc.badge.plus") }.disabled(choosingScripts)
+                    Button { beginImport(.folder) } label: { Label("导入整个文件夹", systemImage: "folder.badge.plus") }.disabled(choosingScripts)
                     Text("选择文件夹后点“打开”，自动导入其中所有子目录、模块与资源。最多 1000 个文件 / 50 MiB；文本编辑支持 UTF-8、单文件最大 512 KiB。").font(.caption).foregroundColor(.secondary)
                     if !importMessage.isEmpty { Text(importMessage).font(.caption).textSelection(.enabled).accessibilityIdentifier("importResult") }
                 }
             }
             .navigationTitle("我的代码")
             .navigationDestination(for: UUID.self) { ProjectView(projectID: $0) }
-            .toolbar { Button {
-                do { selected = try store.create() } catch { store.error = error.localizedDescription }
-            } label: { Image(systemName: "plus") }.accessibilityLabel("新建脚本") }
+            .toolbar {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button(choosingScripts ? "完成" : "选择") {
+                        choosingScripts.toggle(); chosenScripts.removeAll()
+                    }.accessibilityLabel(choosingScripts ? "完成选择" : "选择脚本")
+                        .disabled(session.busy || standaloneScripts.isEmpty)
+                    if !choosingScripts {
+                        Button {
+                            do { selected = try store.create() } catch { store.error = error.localizedDescription }
+                        } label: { Image(systemName: "plus") }.accessibilityLabel("新建脚本")
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if choosingScripts {
+                    HStack {
+                        Button(chosenScripts.count == standaloneScripts.count ? "取消全选" : "全选") {
+                            if chosenScripts.count == standaloneScripts.count { chosenScripts.removeAll() }
+                            else { chosenScripts = Set(standaloneScripts.map(\.id)) }
+                        }
+                        Spacer()
+                        Button("删除所选（\(chosenScripts.count)）", role: .destructive) { confirmingScriptDeletion = true }
+                            .disabled(chosenScripts.isEmpty || session.busy)
+                    }.padding().background(.bar)
+                }
+            }
+            .onChange(of: standaloneScripts.map(\.id)) { ids in
+                chosenScripts.formIntersection(ids)
+                if ids.isEmpty { choosingScripts = false }
+            }
+            .confirmationDialog("删除所选的 \(chosenScripts.count) 个脚本？", isPresented: $confirmingScriptDeletion, titleVisibility: .visible) {
+                Button("删除 \(chosenScripts.count) 个脚本", role: .destructive) {
+                    do {
+                        try store.deleteScripts(chosenScripts)
+                        chosenScripts.removeAll(); choosingScripts = false
+                    } catch { store.error = error.localizedDescription }
+                }
+                Button("取消", role: .cancel) {}
+            } message: { Text("只删除所选的“我的脚本”，项目和 Git 仓库中的文件不受影响。") }
             .sheet(item: $importRequest, onDismiss: finishImport) { request in
                 CodeImportPicker(mode: request.mode, onDismiss: {
                     if activeImportID == request.id { finishImport() }
@@ -110,23 +150,34 @@ struct CodeLibraryView: View {
         }
     }
     private var scriptsSection: some View {
-        Section("我的脚本 · 长按操作") {
-            ForEach(store.documents.filter { $0.projectID == nil }) { document in
-                Button { selected = document } label: {
+        Section(choosingScripts ? "我的脚本 · 已选 \(chosenScripts.count) 项" : "我的脚本 · 长按或点右上角选择") {
+            ForEach(standaloneScripts) { document in
+                Button {
+                    if choosingScripts {
+                        if !chosenScripts.insert(document.id).inserted { chosenScripts.remove(document.id) }
+                    } else { selected = document }
+                } label: {
                     HStack {
+                        if choosingScripts {
+                            Image(systemName: chosenScripts.contains(document.id) ? "checkmark.circle.fill" : "circle").foregroundColor(.teal).accessibilityHidden(true)
+                        }
                         Image(systemName: "doc.text").foregroundColor(.teal)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(document.name).foregroundColor(.primary)
                             Text("\(document.source.components(separatedBy: "\n").count) 行 · 保存在本机").font(.caption).foregroundColor(.secondary)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").font(.caption)
+                        if !choosingScripts { Image(systemName: "chevron.right").font(.caption) }
                     }.padding(.vertical, 5)
-                }.contextMenu {
-                    Button("打开") { selected = document }
-                    Button { addingScript = document } label: { Label("添加到项目 / Git 仓库", systemImage: "folder.badge.plus") }
-                    Button { UIPasteboard.general.string = document.source } label: { Label("复制代码", systemImage: "doc.on.doc") }
-                    Button(role: .destructive) { deleting = document } label: { Label("删除脚本", systemImage: "trash") }
+                }
+                .accessibilityAddTraits(choosingScripts && chosenScripts.contains(document.id) ? .isSelected : [])
+                .contextMenu {
+                    if !choosingScripts {
+                        Button("打开") { selected = document }
+                        Button { addingScript = document } label: { Label("添加到项目 / Git 仓库", systemImage: "folder.badge.plus") }
+                        Button { UIPasteboard.general.string = document.source } label: { Label("复制代码", systemImage: "doc.on.doc") }
+                        Button(role: .destructive) { deleting = document } label: { Label("删除脚本", systemImage: "trash") }
+                    }
                 }
             }
         }

@@ -142,6 +142,15 @@ final class LearningStore: ObservableObject {
         do { try persist() } catch { documents = previous; throw error }
     }
 
+    func deleteScripts(_ ids: Set<UUID>) throws {
+        guard !ids.isEmpty else { return }
+        let scripts = Set(documents.filter { $0.projectID == nil }.map(\.id))
+        guard ids.isSubset(of: scripts) else { throw failure("所选脚本已变化，请重新选择。") }
+        let previous = documents
+        documents.removeAll { ids.contains($0.id) }
+        do { try persist() } catch { documents = previous; throw error }
+    }
+
     func deleteProjectFile(_ project: ScriptProject, path: String) throws {
         guard projects.contains(where: { $0.id == project.id }),
               !path.split(separator: "/").contains(where: { $0.lowercased() == ".git" }) else { throw failure("不能删除 Git 数据或不存在的项目。") }
