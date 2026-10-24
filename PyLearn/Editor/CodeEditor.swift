@@ -146,7 +146,9 @@ struct CodeEditor: UIViewRepresentable {
             // Ordinary refreshes must not move the input method's marked caret.
             if view.markedTextRange != nil {
                 guard desiredText != source else { return }
-                // A genuine external document replacement ends composition first.
+                // The old marked text is superseded by this external reload.
+                // Runestone insertText ends marking; resigning alone does not.
+                view.insertText("")
                 view.resignFirstResponder()
                 remember(view.text)
             }

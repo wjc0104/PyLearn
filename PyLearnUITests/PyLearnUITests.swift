@@ -99,7 +99,9 @@ final class PyLearnUITests: XCTestCase {
         app.buttons["确认删除"].tap()
         XCTAssertTrue(folder.waitForNonExistence(timeout: 5))
         app.buttons["Git 版本管理"].tap()
-        app.buttons["初始化 Git"].tap()
+        let initialize = app.buttons["初始化 Git"]
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: initialize)], timeout: 10), .completed)
+        initialize.tap()
         let commitMessage = app.textFields["提交说明"]
         XCTAssertTrue(commitMessage.waitForExistence(timeout: 5))
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: commitMessage)], timeout: 10), .completed)
