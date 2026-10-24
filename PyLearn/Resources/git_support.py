@@ -1,5 +1,6 @@
 """Git operations via pure Python Dulwich; no shell or credential persistence."""
 import io
+import os
 from pathlib import Path
 from urllib.parse import urlsplit
 from dulwich import porcelain
@@ -19,6 +20,10 @@ def _clean(path):
 def perform(payload):
     path = str(Path(payload['directory']).resolve())
     operation = payload.get('operation', 'status')
+    # Reflog writes ask for an OS identity even with Git config; iOS has no login user.
+    identity = {key: os.environ.get(key) for key in ('USER', 'EMAIL')}
+    for key, fallback in (('USER', 'PyLearn'), ('EMAIL', 'pylearn@local')):
+        if not identity[key]: os.environ[key] = fallback
     try:
         if operation == 'commit_push':
             _remote(payload.get('remote', ''))
@@ -130,3 +135,7 @@ def perform(payload):
         for secret in (payload.get('token'), payload.get('username')):
             if secret: message = message.replace(secret, '***')
         return {'status':'error', 'report':'Git ' + {'commit':'提交','push':'推送','pull':'拉取','clone':'克隆'}.get(operation, operation) + '失败；本地文件和已有提交已保留。\n' + message[:2000]}
+    finally:
+        for key, previous in identity.items():
+            if previous is None: os.environ.pop(key, None)
+            else: os.environ[key] = previous

@@ -6,6 +6,23 @@ import git_support
 from unittest.mock import patch
 from dulwich import porcelain
 class GitTests(unittest.TestCase):
+ def test_clone_works_without_ios_system_login_and_restores_environment(self):
+  import types
+  with tempfile.TemporaryDirectory() as d:
+   source=Path(d,'source');source.mkdir()
+   git_support.perform(dict(directory=str(source),operation='init'))
+   Path(source,'main.py').write_text('print(42)')
+   git_support.perform(dict(directory=str(source),operation='commit',message='origin'))
+   def no_login(*args): raise KeyError('No system user on iOS')
+   unavailable_pwd=types.SimpleNamespace(getpwuid=no_login)
+   identity_keys=dict(LOGNAME='',USER='',LNAME='',USERNAME='',EMAIL='')
+   with patch.dict(os.environ,identity_keys), patch.dict(sys.modules,{'pwd':unavailable_pwd}), patch.object(os,'getuid',return_value=501,create=True):
+    with patch.object(git_support,'_remote',return_value=str(source)):
+     result=git_support.perform(dict(directory=str(Path(d,'clone')),operation='clone',remote='https://fixture/repo'))
+    self.assertEqual(result['status'],'success',result)
+    self.assertEqual(Path(d,'clone/main.py').read_text(),'print(42)')
+    self.assertEqual({key:os.environ.get(key) for key in identity_keys},identity_keys)
+
  def test_public_clone_does_not_send_an_empty_password_as_credentials(self):
   from dulwich.server import DictBackend
   from dulwich.web import make_wsgi_chain
