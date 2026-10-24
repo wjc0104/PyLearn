@@ -2,6 +2,8 @@ import XCTest
 
 final class PyLearnUITests: XCTestCase {
     func testModelResultStaysVisibleAndSwitchRequiresConfirmation() {
+        // Simulator keyboard quiescence can consume two 60-second waits before any request.
+        executionTimeAllowance = 300
         let app = XCUIApplication()
         app.launch()
         app.tabBars.buttons["设置"].tap()
